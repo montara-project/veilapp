@@ -1,5 +1,5 @@
-import './style.css'
 import { invoke } from '@tauri-apps/api/core'
+import './style.css'
 
 interface AppInfo {
   name: string
@@ -71,8 +71,10 @@ function buildCard(app: AppInfo): HTMLElement {
     img.draggable = false
     iconWrap.appendChild(img)
   } else {
-    iconWrap.classList.add('fallback')
-    iconWrap.textContent = app.name.charAt(0).toUpperCase()
+    const letter = document.createElement('div')
+    letter.className = 'fallback'
+    letter.textContent = app.name.charAt(0).toUpperCase()
+    iconWrap.appendChild(letter)
   }
 
   const quit = document.createElement('button')
