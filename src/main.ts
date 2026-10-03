@@ -33,6 +33,125 @@ const count = document.querySelector<HTMLSpanElement>('#app-count')!
 const hideBtn = document.querySelector<HTMLButtonElement>('#hide-icons')!
 const sortNameBtn = document.querySelector<HTMLButtonElement>('#sort-name')!
 const sortMemoryBtn = document.querySelector<HTMLButtonElement>('#sort-memory')!
+const axBanner = document.querySelector<HTMLDivElement>('#ax-banner')!
+
+async function checkAccessibility(): Promise<void> {
+  if (!isTauri) {
+    axBanner.hidden = true
+    return
+  }
+  try {
+    axBanner.hidden = await invoke<boolean>('accessibility_granted')
+  } catch {
+    axBanner.hidden = true
+  }
+}
+
+axBanner.querySelector<HTMLButtonElement>('#ax-enable')!.addEventListener('click', () => {
+  void invoke('request_accessibility')
+    .then(() => checkAccessibility())
+    .catch(() => {})
+})
+
+// Existing cards keyed by PID so refreshes update nodes in place. Recreating
+// the whole grid every 5s re-decodes icons and re-renders the blurred panel,
+// which shows up as a visible flicker.
+const cardEls = new Map<number, HTMLElement>()
+
+function buildCard(app: AppInfo): HTMLElement {
+  const card = document.createElement('div')
+  card.className = 'app-card'
+
+  const iconWrap = document.createElement('div')
+  iconWrap.className = 'app-icon'
+  if (app.iconPng) {
+    const img = document.createElement('img')
+    img.src = `data:image/png;base64,${app.iconPng}`
+    img.alt = ''
+    img.draggable = false
+    iconWrap.appendChild(img)
+  } else {
+    iconWrap.classList.add('fallback')
+    iconWrap.textContent = app.name.charAt(0).toUpperCase()
+  }
+
+  const quit = document.createElement('button')
+  quit.className = 'quit'
+  quit.textContent = '✕'
+  quit.title = 'Quit'
+  quit.addEventListener('click', (e) => {
+    e.stopPropagation()
+    void quitApp(app.pid, e.altKey)
+  })
+  iconWrap.appendChild(quit)
+
+  const name = document.createElement('div')
+  name.className = 'app-name'
+  name.textContent = app.name
+  name.title = app.name
+
+  const mem = document.createElement('div')
+  mem.className = 'app-memory'
+
+  card.append(iconWrap, name, mem)
+  card.addEventListener('click', () => void activate(app.pid))
+  card.addEventListener('contextmenu', (e) => {
+    e.preventDefault()
+    void quitApp(app.pid, false)
+  })
+  return card
+}
+
+function render(): void {
+  count.textContent = `${apps.length} apps`
+  const list = sorted()
+  const activePids = new Set(list.map((a) => a.pid))
+
+  for (const [pid, el] of cardEls) {
+    if (!activePids.has(pid)) {
+      el.remove()
+      cardEls.delete(pid)
+    }
+  }
+
+  if (list.length === 0) {
+    document.getElementById('empty')?.remove()
+    const empty = document.createElement('p')
+    empty.id = 'empty'
+    empty.textContent = 'No menu bar apps detected'
+    grid.appendChild(empty)
+    return
+  }
+  document.getElementById('empty')?.remove()
+
+  // Place cards in sorted order, but only move a node when it is not already
+  // in its expected slot — an unchanged refresh then touches no DOM at all.
+  let prev: Element | null = null
+  for (const app of list) {
+    let card: HTMLElement | undefined = cardEls.get(app.pid)
+    if (!card) {
+      card = buildCard(app)
+      cardEls.set(app.pid, card)
+    }
+
+    const mem = card.querySelector<HTMLDivElement>('.app-memory')!
+    const heavy = app.memoryBytes >= 1024 ** 3
+    mem.textContent = formatMemory(app.memoryBytes)
+    mem.classList.toggle('heavy', heavy)
+
+    const expected: Element | null = prev
+      ? prev.nextElementSibling
+      : grid.firstElementChild
+    if (card !== expected) {
+      if (prev) {
+        prev.after(card)
+      } else {
+        grid.prepend(card)
+      }
+    }
+    prev = card
+  }
+}
 
 function formatMemory(bytes: number): string {
   if (bytes >= 1024 ** 3) return `${(bytes / 1024 ** 3).toFixed(2)} GB`
@@ -53,64 +172,6 @@ function sorted(): AppInfo[] {
   return copy
 }
 
-function render(): void {
-  count.textContent = `${apps.length} apps`
-  grid.innerHTML = ''
-
-  if (apps.length === 0) {
-    const empty = document.createElement('p')
-    empty.id = 'empty'
-    empty.textContent = 'No apps running'
-    grid.appendChild(empty)
-    return
-  }
-
-  for (const app of sorted()) {
-    const card = document.createElement('div')
-    card.className = 'app-card'
-
-    const iconWrap = document.createElement('div')
-    iconWrap.className = 'app-icon'
-    if (app.iconPng) {
-      const img = document.createElement('img')
-      img.src = `data:image/png;base64,${app.iconPng}`
-      img.alt = ''
-      img.draggable = false
-      iconWrap.appendChild(img)
-    } else {
-      iconWrap.classList.add('fallback')
-      iconWrap.textContent = app.name.charAt(0).toUpperCase()
-    }
-
-    const quit = document.createElement('button')
-    quit.className = 'quit'
-    quit.textContent = '✕'
-    quit.title = 'Quit'
-    quit.addEventListener('click', (e) => {
-      e.stopPropagation()
-      void quitApp(app.pid, e.altKey)
-    })
-    iconWrap.appendChild(quit)
-
-    const name = document.createElement('div')
-    name.className = 'app-name'
-    name.textContent = app.name
-    name.title = app.name
-
-    const mem = document.createElement('div')
-    mem.className = `app-memory${app.memoryBytes >= 1024 ** 3 ? ' heavy' : ''}`
-    mem.textContent = formatMemory(app.memoryBytes)
-
-    card.append(iconWrap, name, mem)
-    card.addEventListener('click', () => void activate(app.pid))
-    card.addEventListener('contextmenu', (e) => {
-      e.preventDefault()
-      void quitApp(app.pid, false)
-    })
-    grid.appendChild(card)
-  }
-}
-
 async function refresh(): Promise<void> {
   try {
     apps = isTauri ? await invoke<AppInfo[]>('list_apps') : MOCK_APPS
@@ -119,6 +180,7 @@ async function refresh(): Promise<void> {
     return
   }
   render()
+  void checkAccessibility()
 }
 
 async function quitApp(pid: number, force: boolean): Promise<void> {

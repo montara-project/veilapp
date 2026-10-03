@@ -1,4 +1,5 @@
 mod apps;
+mod ax_menubar;
 mod menubar;
 
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -22,7 +23,7 @@ static LAST_AUTO_HIDE: AtomicU64 = AtomicU64::new(0);
 
 #[tauri::command]
 fn list_apps() -> Vec<apps::AppInfo> {
-    apps::list_regular_apps()
+    apps::list_menu_bar_apps()
 }
 
 #[tauri::command]
@@ -37,7 +38,16 @@ fn activate_app(pid: i32) -> bool {
 
 #[tauri::command]
 fn toggle_menu_bar_icons() -> bool {
-    menubar::toggle()
+    // With Accessibility granted, hide the third-party menu bar icons
+    // individually via window alpha (our own icon stays visible). Without
+    // it, fall back to the wall spacer.
+    if !ax_menubar::is_trusted() {
+        return menubar::toggle();
+    }
+    let hidden = !menubar::icons_hidden();
+    let ids = apps::menu_bar_item_window_ids().unwrap_or_default();
+    menubar::set_icons_hidden(&ids, hidden);
+    hidden
 }
 
 #[tauri::command]
@@ -45,6 +55,18 @@ fn hide_panel(app: tauri::AppHandle) {
     if let Some(panel) = app.get_webview_window(PANEL_LABEL) {
         let _ = panel.hide();
     }
+}
+
+#[tauri::command]
+fn accessibility_granted() -> bool {
+    ax_menubar::is_trusted()
+}
+
+/// Asks macOS for the Accessibility permission; shows the system prompt that
+/// deep-links into System Settings on first use.
+#[tauri::command]
+fn request_accessibility() -> bool {
+    ax_menubar::request_access()
 }
 
 pub fn run() {
@@ -68,7 +90,17 @@ pub fn run() {
                     .skip_taskbar(true)
                     .resizable(false)
                     .visible(false)
-                    .shadow(false)
+                    // Native macOS popover material — Liquid Glass on macOS 26,
+                    // NSVisualEffectView popover material on older systems.
+                    .effects(
+                        tauri::window::EffectsBuilder::new()
+                            .effect(tauri::window::Effect::LiquidGlassRegular)
+                            .effect(tauri::window::Effect::Popover)
+                            .state(tauri::window::EffectState::Active)
+                            .radius(16.0)
+                            .build(),
+                    )
+                    .shadow(true)
                     .build()?;
 
             let panel_for_focus = panel.clone();
@@ -125,9 +157,10 @@ pub fn run() {
                 })
                 .build(app)?;
 
-            // Create the wall AFTER the tray: new status items enter at the
-            // left end, so the tray icon ends up right of the wall and stays
-            // visible when the wall expands. Users can still Cmd-drag both.
+            // Create the wall AFTER the tray so the tray icon ends up right of
+            // the wall and stays visible when the wall expands. On macOS 26
+            // the exact ordering is decided by the system; users can still
+            // Cmd-drag both items into place if needed.
             menubar::init();
             Ok(())
         })
@@ -136,8 +169,19 @@ pub fn run() {
             quit_app,
             activate_app,
             toggle_menu_bar_icons,
-            hide_panel
+            hide_panel,
+            accessibility_granted,
+            request_accessibility
         ])
-        .run(tauri::generate_context!())
-        .expect("error while building tauri application");
+        .build(tauri::generate_context!())
+        .expect("error while building tauri application")
+        .run(|_app, event| {
+            if matches!(
+                event,
+                tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit
+            ) {
+                // Never leave the user's menu bar with invisible icons.
+                menubar::restore_hidden_icons();
+            }
+        });
 }
