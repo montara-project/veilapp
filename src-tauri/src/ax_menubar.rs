@@ -241,19 +241,6 @@ pub fn menu_bar_items() -> Option<Vec<MenuItem>> {
     Some(out)
 }
 
-/// x positions of the AX-named system status items (Battery, Wi-Fi, Clock,
-/// Control Center) — the hosted windows aligned with them must never be
-/// hidden. `None` when the Accessibility permission is missing.
-pub fn system_item_positions() -> Option<Vec<f64>> {
-    Some(
-        menu_bar_items()?
-            .iter()
-            .filter(|i| i.identifier.starts_with("com.apple.") && i.x > 0.0)
-            .map(|i| i.x)
-            .collect(),
-    )
-}
-
 static PRE_TRAY_IDS: Mutex<Option<Vec<u32>>> = Mutex::new(None);
 static OWN_TRAY_ID: Mutex<Option<u32>> = Mutex::new(None);
 

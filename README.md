@@ -15,7 +15,7 @@ Veil App lives in the menu bar. Click its icon to open a small translucent panel
 
 ## How "Hide icons" works
 
-With the Accessibility permission granted, *Hide icons* targets each third-party menu bar icon **individually**: every status item is matched to its hosted window (Accessibility position ↔ window bounds), and the window's alpha is set to 0 through the private SkyLight (CGS) framework — the same class of API menu bar managers like Bartender and Ice rely on. Press *Show icons* to restore them, and the icons are always restored when the app quits. Veil App's own icon stays visible so the panel remains reachable.
+With the Accessibility permission granted, *Hide icons* targets each hosted menu bar window individually through the private SkyLight (CGS) framework — the same class of API menu bar managers like Bartender and Ice rely on. The keep-list is explicit: **Veil App itself, Battery, Spotlight and Wi-Fi stay visible** (Spotlight identified as the anonymous window between Battery and Wi-Fi); every other icon — third-party apps, Clock, Control Center — is hidden. Press *Show icons* to restore, and icons are always restored when the app quits.
 
 Without Accessibility access, it falls back to the public-API **wall** trick: Veil App owns an invisible blank status item (the *wall*); expanding it pushes every icon to its left out of the visible bar, collapsing brings them back.
 
