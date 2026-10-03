@@ -39,8 +39,8 @@ fn activate_app(pid: i32) -> bool {
 #[tauri::command]
 fn toggle_menu_bar_icons() -> bool {
     // Expand/collapse the wall: hides every icon left of Veil App, keeping
-    // Veil App and the system items to its right (Spotlight, Control
-    // Center, Clock).
+    // Veil App and the system items to its right (Wi-Fi, Battery,
+    // Spotlight, Control Center, Clock).
     menubar::toggle()
 }
 

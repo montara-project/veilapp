@@ -8,7 +8,7 @@ Veil App lives in the menu bar. Click its icon to open a small translucent panel
 
 - **Menu bar popover** — a tray icon opens a compact panel drawn with the native macOS popover material (Liquid Glass on macOS 26, `NSVisualEffectView` on older systems), adapting to light/dark appearance automatically; it hides itself when it loses focus (or press `Esc`).
 - **Menu bar apps at a glance** — the actual menu bar items, read through the Accessibility API (macOS 26 hosts all status items under Control Center), mapped to their running apps with icon, name, and live memory usage, refreshed every 5 seconds. Apps using ≥ 1 GB get a red badge. Needs the Accessibility permission — without it the panel falls back to listing background (Accessory-policy) apps and shows an _Enable…_ banner.
-- **Hide menu bar icons** — one button hides every icon except Veil App, Spotlight, Control Center and the Clock; click again to bring everything back.
+- **Hide menu bar icons** — one button hides every icon except Veil App, Wi-Fi, Battery, Spotlight, Control Center and the Clock; click again to bring everything back.
 - **App management** — click a card to activate an app, hover and click ✕ (or right-click) to quit it, hold `⌥` to force-quit.
 - **Sort by Name or Memory.**
 - **Universal builds** — CI publishes a single binary that runs natively on Intel and Apple Silicon.
@@ -17,7 +17,9 @@ Veil App lives in the menu bar. Click its icon to open a small translucent panel
 
 _Hide icons_ uses the public-API **wall** trick (the same one Hidden Bar and Ice use). Veil App owns a blank status item, the _wall_, placed directly left of its own icon. Expanding the wall pushes every icon to its left off the visible bar; collapsing it brings them back. Nothing needs the Accessibility permission, and the wall disappears with the app, so icons always come back when Veil App quits.
 
-On first launch, Veil App seeds the `NSStatusItem Preferred Position` defaults so the layout is `… [wall][Veil App] Spotlight · Control Center · Clock`. While hidden, only **Veil App, Spotlight, Control Center and the Clock** stay visible. Anything you Cmd-drag to the right of the Veil App icon also stays visible. The seeded positions are only rewritten if they are missing or the wall ends up right of the icon, so your own Cmd-drag arrangement survives relaunches.
+On launch, Veil App reads where macOS keeps Wi-Fi, Battery and Spotlight (their `NSStatusItem Preferred Position` defaults). It then seeds its own positions so the wall and its icon sit just left of whichever of those is leftmost: `… [wall][Veil App] Wi-Fi · Battery · Spotlight · Control Center · Clock`. While hidden, only **Veil App, Wi-Fi, Battery, Spotlight, Control Center and the Clock** stay visible. Items turned off in System Settings are skipped.
+
+A third-party icon that sits _between_ those system items also stays visible, because a single wall can only hide what is to its left. Cmd-drag such an icon to the left of the wall to hide it as well. The seeded positions are only rewritten if they are missing, the wall ends up right of the icon, or a kept item ends up left of the wall, so your own Cmd-drag arrangement survives relaunches.
 
 > Changing the alpha of other apps' status item windows (`CGSSetWindowAlpha`) does not work: the window server silently ignores it for windows owned by another process.
 

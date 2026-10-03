@@ -1,4 +1,5 @@
 use core_foundation::base::{CFType, CFTypeRef, TCFType};
+use core_foundation::boolean::CFBoolean;
 use core_foundation::number::CFNumber;
 use core_foundation::string::{CFString, CFStringRef};
 use objc2::rc::Retained;
@@ -38,43 +39,81 @@ unsafe extern "C" {
     fn CFPreferencesAppSynchronize(application_id: CFStringRef) -> bool;
 }
 
-fn position_key(autosave_name: &str) -> CFString {
-    CFString::new(&format!("NSStatusItem Preferred Position {autosave_name}"))
+/// System items that must stay visible while icons are hidden, as
+/// (preferences domain, status item autosave name). Clock and Control
+/// Center are pinned to the right edge by macOS and always stay visible.
+const KEEP_ITEMS: [(&str, &str); 3] = [
+    ("com.apple.Spotlight", "Item-0"),
+    ("com.apple.controlcenter", "WiFi"),
+    ("com.apple.controlcenter", "Battery"),
+];
+
+fn copy_pref(app_id: CFStringRef, key: &str) -> Option<CFType> {
+    let key = CFString::new(key);
+    let value = unsafe { CFPreferencesCopyAppValue(key.as_concrete_TypeRef(), app_id) };
+    (!value.is_null()).then(|| unsafe { CFType::wrap_under_create_rule(value) })
+}
+
+fn position_key(autosave_name: &str) -> String {
+    format!("NSStatusItem Preferred Position {autosave_name}")
 }
 
 fn read_position(app_id: CFStringRef, autosave_name: &str) -> Option<f64> {
-    let key = position_key(autosave_name);
-    let value = unsafe { CFPreferencesCopyAppValue(key.as_concrete_TypeRef(), app_id) };
-    if value.is_null() {
-        return None;
-    }
-    unsafe { CFType::wrap_under_create_rule(value) }
+    copy_pref(app_id, &position_key(autosave_name))?
         .downcast::<CFNumber>()
         .and_then(|n| n.to_f64())
 }
 
+/// `false` only when the user turned the item off in the menu bar settings.
+fn is_visible(app_id: CFStringRef, autosave_name: &str) -> bool {
+    let Some(value) = copy_pref(app_id, &format!("NSStatusItem Visible {autosave_name}")) else {
+        return true;
+    };
+    value
+        .downcast::<CFBoolean>()
+        .map(bool::from)
+        .or_else(|| value.downcast::<CFNumber>().and_then(|n| n.to_i64()).map(|n| n != 0))
+        .unwrap_or(true)
+}
+
+/// Preferred position of the leftmost visible keep-list item (0 when none).
+fn leftmost_keep_position() -> f64 {
+    KEEP_ITEMS
+        .iter()
+        .filter_map(|(domain, name)| {
+            let domain = CFString::new(domain);
+            let domain = domain.as_concrete_TypeRef();
+            is_visible(domain, name)
+                .then(|| read_position(domain, name))
+                .flatten()
+        })
+        .fold(0.0, f64::max)
+}
+
 /// Seed where macOS places our tray icon and the wall, before they get their
 /// autosave names. A preferred position is the item's distance from the
-/// right edge of the screen; a larger value sits further left. Placing both
-/// just left of Spotlight yields `… [wall][Veil App] Spotlight ⋯ Clock`, so
-/// expanding the wall hides everything except Veil App and the system items
-/// to its right (Spotlight, Control Center, Clock).
+/// right edge of the screen; a larger value sits further left, and items are
+/// laid out in that order. Placing both just left of the leftmost keep-list
+/// item yields `… [wall][Veil App] Wi-Fi ⋯ Battery ⋯ Spotlight ⋯ Clock`, so
+/// expanding the wall hides everything except Veil App and the items to its
+/// right. Third-party icons sitting between keep-list items stay visible;
+/// Cmd-drag them left of the wall to hide them too.
 ///
-/// Only seeded when missing or broken (wall not left of the icon), so a
-/// user's own Cmd-drag arrangement survives relaunches.
+/// Only seeded when missing or broken (wall not left of the icon, or not
+/// left of every keep-list item), so a user's own Cmd-drag arrangement
+/// survives relaunches.
 fn seed_positions() {
     let own = unsafe { kCFPreferencesCurrentApplication };
+    let keep = leftmost_keep_position();
     let icon = read_position(own, TRAY_AUTOSAVE);
     let wall = read_position(own, WALL_AUTOSAVE);
     if let (Some(icon), Some(wall)) = (icon, wall) {
-        if wall > icon {
+        if wall > icon && wall > keep {
             return;
         }
     }
-    let spotlight = CFString::from_static_string("com.apple.Spotlight");
-    let base = read_position(spotlight.as_concrete_TypeRef(), "Item-0").unwrap_or(0.0);
-    for (name, pos) in [(TRAY_AUTOSAVE, base + 1.0), (WALL_AUTOSAVE, base + 2.0)] {
-        let key = position_key(name);
+    for (name, pos) in [(TRAY_AUTOSAVE, keep + 1.0), (WALL_AUTOSAVE, keep + 2.0)] {
+        let key = CFString::new(&position_key(name));
         let value = CFNumber::from(pos);
         unsafe { CFPreferencesSetAppValue(key.as_concrete_TypeRef(), value.as_CFTypeRef(), own) };
     }
