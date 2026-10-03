@@ -103,14 +103,6 @@ pub fn toggle() -> bool {
     HIDDEN.store(hidden, Ordering::SeqCst);
     if let Some(item) = WALL.lock().unwrap().as_ref() {
         item.0.setLength(if hidden { WALL_EXPANDED } else { WALL_COLLAPSED });
-        log::info!(
-            "DEBUG toggle hidden={hidden} len={} visible={} main={}",
-            item.0.length(),
-            item.0.isVisible(),
-            objc2::MainThreadMarker::new().is_some()
-        );
-    } else {
-        log::info!("DEBUG toggle: no wall");
     }
     hidden
 }
