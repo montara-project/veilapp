@@ -3942,7 +3942,6 @@ version = "0.1.0"
 dependencies = [
  "base64 0.22.1",
  "core-foundation",
- "core-graphics",
  "libproc",
  "log",
  "objc2",

@@ -49,16 +49,9 @@ fn toggle_menu_bar_icons() -> bool {
 }
 
 #[tauri::command]
-fn hide_panel(app: tauri::AppHandle) {
-    if let Some(panel) = app.get_webview_window(PANEL_LABEL) {
-        let _ = panel.hide();
-    }
-}
-
-#[tauri::command]
-fn hide_settings(app: tauri::AppHandle) {
-    if let Some(settings) = app.get_webview_window(SETTINGS_LABEL) {
-        let _ = settings.hide();
+fn hide_window(app: tauri::AppHandle, label: String) {
+    if let Some(window) = app.get_webview_window(&label) {
+        let _ = window.hide();
     }
 }
 
@@ -247,8 +240,7 @@ pub fn run() {
             quit_app,
             activate_app,
             toggle_menu_bar_icons,
-            hide_panel,
-            hide_settings,
+            hide_window,
             settings::get_settings,
             settings::set_show_memory_usage
         ])

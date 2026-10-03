@@ -62,20 +62,12 @@ pub fn get_settings(state: State<'_, SettingsState>) -> Settings {
 }
 
 #[tauri::command]
-pub fn set_show_memory_usage(
-    app: AppHandle,
-    state: State<'_, SettingsState>,
-    show: bool,
-) -> Settings {
-    let settings = {
-        let mut guard = state.0.lock().unwrap();
-        guard.show_memory_usage = show;
-        guard.clone()
-    };
-    if let Err(err) = settings.save(&app) {
+pub fn set_show_memory_usage(app: AppHandle, state: State<'_, SettingsState>, show: bool) {
+    let mut guard = state.0.lock().unwrap();
+    guard.show_memory_usage = show;
+    if let Err(err) = guard.save(&app) {
         log::warn!("failed to save settings: {err}");
     }
-    settings
 }
 
 /// Load (or seed defaults for) the persisted settings and manage them as app

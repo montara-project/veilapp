@@ -3,8 +3,6 @@ import { getVersion } from '@tauri-apps/api/app'
 import { disable, enable, isEnabled } from '@tauri-apps/plugin-autostart'
 import './settings.css'
 
-const isTauri = '__TAURI_INTERNALS__' in window
-
 // Same shape as the Rust `Settings`.
 interface Settings {
   showMemoryUsage: boolean
@@ -29,7 +27,6 @@ function initTabs(): void {
 
 async function initLaunchAtLogin(): Promise<void> {
   const toggle = document.querySelector<HTMLInputElement>('#launch-at-login')!
-  if (!isTauri) return
   try {
     toggle.checked = await isEnabled()
   } catch (err) {
@@ -48,7 +45,6 @@ async function initLaunchAtLogin(): Promise<void> {
 
 async function initShowMemory(): Promise<void> {
   const toggle = document.querySelector<HTMLInputElement>('#show-memory')!
-  if (!isTauri) return
   try {
     toggle.checked = (await invoke<Settings>('get_settings')).showMemoryUsage
   } catch (err) {
@@ -66,11 +62,11 @@ async function initShowMemory(): Promise<void> {
 
 async function initVersion(): Promise<void> {
   const el = document.querySelector<HTMLSpanElement>('#app-version')!
-  el.textContent = isTauri ? await getVersion() : '0.1.0'
+  el.textContent = await getVersion()
 }
 
 window.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape' && isTauri) void invoke('hide_settings')
+  if (e.key === 'Escape') void invoke('hide_window', { label: 'settings' })
 })
 
 initTabs()
