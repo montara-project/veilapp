@@ -1,19 +1,47 @@
 #!/usr/bin/env bash
 # Build Veil App from source: installs Rust and Bun when missing, then runs
-# `bun run tauri build`. Usage: ./scripts/install.sh
+# `bun run tauri build`.
+#
+# Usage, from a checkout:   ./scripts/install.sh
+# Usage, standalone:        bash -c "$(curl -fsSL https://raw.githubusercontent.com/montara-project/veilapp/main/scripts/install.sh)"
+#
+# Standalone runs clone the repository into $VEILAPP_DIR (default ~/veilapp),
+# or update it with a fast-forward pull when it is already there.
 set -euo pipefail
 
 # Minimum Rust version, kept in sync with `rust-version` in src-tauri/Cargo.toml.
 MIN_RUST="1.90.0"
+REPO_URL="https://github.com/montara-project/veilapp.git"
+VEILAPP_DIR="${VEILAPP_DIR:-$HOME/veilapp}"
 
 info() { printf '\033[1;34m==>\033[0m %s\n' "$1"; }
 fail() { printf '\033[1;31merror:\033[0m %s\n' "$1" >&2; exit 1; }
 
-# Run from the repository root regardless of where the script is invoked.
-cd "$(dirname "$0")/.."
-
 [[ "$(uname -s)" == "Darwin" ]] || fail "Veil App is a macOS app; run this on macOS."
 command -v curl >/dev/null || fail "curl is required."
+xcode-select -p >/dev/null 2>&1 ||
+  fail "Xcode Command Line Tools are required. Install them with: xcode-select --install"
+
+# --- Source -----------------------------------------------------------------
+# Run from the repository root: the checkout this script lives in, or a fresh
+# clone when it was fetched with curl (BASH_SOURCE is empty then).
+script_dir=""
+if [[ -n "${BASH_SOURCE[0]:-}" && -f "${BASH_SOURCE[0]}" ]]; then
+  script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+fi
+if [[ -n "$script_dir" && -f "$script_dir/../src-tauri/tauri.conf.json" ]]; then
+  cd "$script_dir/.."
+elif [[ -d "$VEILAPP_DIR/.git" ]]; then
+  info "Updating existing checkout in $VEILAPP_DIR..."
+  git -C "$VEILAPP_DIR" pull --ff-only
+  cd "$VEILAPP_DIR"
+elif [[ -e "$VEILAPP_DIR" ]]; then
+  fail "$VEILAPP_DIR exists but is not a git checkout; set VEILAPP_DIR to another path."
+else
+  info "Cloning Veil App into $VEILAPP_DIR..."
+  git clone --depth 1 "$REPO_URL" "$VEILAPP_DIR"
+  cd "$VEILAPP_DIR"
+fi
 
 # --- Rust -------------------------------------------------------------------
 # A previous rustup install may not be on PATH in this shell yet.
@@ -87,4 +115,4 @@ fi
 eject_stale_dmgs
 
 info "Done. Build artifacts:"
-ls -d src-tauri/target/release/bundle/macos/*.app src-tauri/target/release/bundle/dmg/*.dmg 2>/dev/null || true
+ls -d "$BUNDLE_DIR"/macos/*.app "$BUNDLE_DIR"/dmg/*.dmg 2>/dev/null || true

@@ -37,7 +37,19 @@ A third-party icon that sits _between_ those system items also stays visible, be
 
 ## Getting started
 
-**Prerequisites:** macOS with Xcode Command Line Tools, [Rust](https://rustup.rs), and [Bun](https://bun.sh).
+### Install from source (one command)
+
+```bash
+bash -c "$(curl -fsSL https://raw.githubusercontent.com/montara-project/veilapp/main/scripts/install.sh)"
+```
+
+The [install script](scripts/install.sh) installs [Rust](https://rustup.rs) (via rustup) and [Bun](https://bun.sh) if they're missing, clones the repo into `~/veilapp` (set `VEILAPP_DIR` to change it; an existing checkout is updated instead), and runs `bun run tauri build`. When it finishes, open `src-tauri/target/release/bundle/dmg/veilapp_<version>_<arch>.dmg` and drag Veil App into Applications.
+
+Already have a checkout? Run `./scripts/install.sh` from it.
+
+**Requires** macOS with the Xcode Command Line Tools (`xcode-select --install`).
+
+### Development
 
 ```bash
 bun install
@@ -66,6 +78,7 @@ src-tauri/
   src/lib.rs             # App entry: tray icon, panel window, IPC commands
   src/menubar.rs         # Hide/show via the wall status item + seeded item positions
   src/apps.rs            # Running third-party apps, memory, icons, quit/activate
+scripts/install.sh       # One-command build: installs Rust/Bun if missing, clones, builds
 .github/workflows/release.yml  # Tag-push release pipeline (universal macOS)
 ```
 
