@@ -13,22 +13,6 @@ interface Settings {
   showMemoryUsage: boolean;
 }
 
-const isTauri = "__TAURI_INTERNALS__" in window;
-
-// Same shape as the Rust `AppInfo`; used when previewing the panel in a
-// regular browser where the Tauri IPC is not available.
-const MOCK_APPS: AppInfo[] = [
-  { name: "ChatGPT", pid: 101, memoryBytes: 4_620_000_000, iconPng: "" },
-  { name: "Claude", pid: 102, memoryBytes: 3_590_000_000, iconPng: "" },
-  { name: "Slack", pid: 103, memoryBytes: 1_375_000_000, iconPng: "" },
-  { name: "Ollama", pid: 104, memoryBytes: 860_000_000, iconPng: "" },
-  { name: "OneDrive", pid: 105, memoryBytes: 247_500_000, iconPng: "" },
-  { name: "Mole", pid: 106, memoryBytes: 139_500_000, iconPng: "" },
-  { name: "Dropover", pid: 107, memoryBytes: 80_700_000, iconPng: "" },
-  { name: "CleanMyMac", pid: 108, memoryBytes: 51_400_000, iconPng: "" },
-  { name: "Itsycal", pid: 109, memoryBytes: 35_700_000, iconPng: "" },
-];
-
 let apps: AppInfo[] = [];
 let settings: Settings = { showMemoryUsage: true };
 let sortBy: "name" | "memory" = "name";
@@ -166,15 +150,13 @@ function sorted(): AppInfo[] {
 }
 
 async function refresh(): Promise<void> {
-  if (isTauri) {
-    try {
-      settings = await invoke<Settings>("get_settings");
-    } catch (err) {
-      console.error("get_settings failed", err);
-    }
+  try {
+    settings = await invoke<Settings>("get_settings");
+  } catch (err) {
+    console.error("get_settings failed", err);
   }
   try {
-    apps = isTauri ? await invoke<AppInfo[]>("list_apps") : MOCK_APPS;
+    apps = await invoke<AppInfo[]>("list_apps");
   } catch (err) {
     console.error("list_apps failed", err);
     return;
@@ -183,16 +165,12 @@ async function refresh(): Promise<void> {
 }
 
 async function quitApp(pid: number, force: boolean): Promise<void> {
-  if (isTauri) {
-    await invoke("quit_app", { pid, force });
-  } else {
-    apps = apps.filter((a) => a.pid !== pid);
-  }
+  await invoke("quit_app", { pid, force });
   render();
 }
 
 async function activate(pid: number): Promise<void> {
-  if (isTauri) await invoke("activate_app", { pid });
+  await invoke("activate_app", { pid });
 }
 
 function setSort(mode: "name" | "memory"): void {
@@ -206,14 +184,12 @@ sortNameBtn.addEventListener("click", () => setSort("name"));
 sortMemoryBtn.addEventListener("click", () => setSort("memory"));
 
 hideBtn.addEventListener("click", async () => {
-  iconsHidden = isTauri
-    ? await invoke<boolean>("toggle_menu_bar_icons")
-    : !iconsHidden;
+  iconsHidden = await invoke<boolean>("toggle_menu_bar_icons");
   hideBtn.textContent = iconsHidden ? "Show icons" : "Hide icons";
 });
 
 window.addEventListener("keydown", (e) => {
-  if (e.key === "Escape" && isTauri) void invoke("hide_panel");
+  if (e.key === "Escape") void invoke("hide_window", { label: "panel" });
 });
 
 void refresh();
