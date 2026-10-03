@@ -1,9 +1,11 @@
 use base64::Engine as _;
-use objc2::{msg_send, AnyThread};
 use objc2::rc::Retained;
+use objc2::runtime::NSObjectProtocol;
+use objc2::{AnyThread, MainThreadMarker, msg_send, sel};
 use objc2_app_kit::{
-    NSApplicationActivationOptions, NSBitmapImageFileType, NSBitmapImageRep,
+    NSApplication, NSApplicationActivationOptions, NSBitmapImageFileType, NSBitmapImageRep,
     NSCompositingOperation, NSImage, NSRunningApplication, NSWorkspace,
+    NSWorkspaceOpenConfiguration,
 };
 use objc2_foundation::{NSArray, NSDictionary, NSRect, NSSize};
 use serde::Serialize;
@@ -62,17 +64,37 @@ pub fn quit_app(pid: i32, force: bool) -> bool {
     false
 }
 
+/// Bring an app to the front the way clicking it in the Dock does.
+///
+/// `activateWithOptions` alone is not enough: since macOS 14 activation is
+/// cooperative (`ActivateIgnoringOtherApps` is ignored) so the request is
+/// dropped unless the active app — our panel — yields to the target first,
+/// and it never reopens a window the user closed. Opening the app's bundle
+/// sends the reopen event, which shows a window when none is open.
 pub fn activate_app(pid: i32) -> bool {
-    let running = running_apps();
-    for app in running {
-        if app.processIdentifier() == pid {
-            #[allow(deprecated)]
-            let options = NSApplicationActivationOptions::ActivateAllWindows
-                | NSApplicationActivationOptions::ActivateIgnoringOtherApps;
-            return app.activateWithOptions(options);
+    let Some(app) = running_apps()
+        .into_iter()
+        .find(|a| a.processIdentifier() == pid)
+    else {
+        return false;
+    };
+    if let Some(mtm) = MainThreadMarker::new() {
+        let me = NSApplication::sharedApplication(mtm);
+        // macOS 14+ only; older systems activate without yielding.
+        if me.respondsToSelector(sel!(yieldActivationToApplication:)) {
+            me.yieldActivationToApplication(&app);
         }
     }
-    false
+    if let Some(url) = app.bundleURL() {
+        let config = NSWorkspaceOpenConfiguration::new();
+        config.setActivates(true);
+        NSWorkspace::sharedWorkspace()
+            .openApplicationAtURL_configuration_completionHandler(&url, &config, None);
+        return true;
+    }
+    // Bundle-less processes can't be reopened; activate them directly.
+    #[allow(deprecated)]
+    app.activateWithOptions(NSApplicationActivationOptions::ActivateAllWindows)
 }
 
 fn running_apps() -> Vec<Retained<NSRunningApplication>> {
@@ -120,10 +142,7 @@ fn icon_to_png_base64(icon: &NSImage) -> Option<String> {
         let rep = NSBitmapImageRep::initWithData(NSBitmapImageRep::alloc(), &tiff)?;
         // SAFETY: `rep` is a valid bitmap image rep; the call only reads it.
         let png = unsafe {
-            rep.representationUsingType_properties(
-                NSBitmapImageFileType::PNG,
-                &NSDictionary::new(),
-            )
+            rep.representationUsingType_properties(NSBitmapImageFileType::PNG, &NSDictionary::new())
         }?;
         Some(base64::engine::general_purpose::STANDARD.encode(png.to_vec()))
     }
