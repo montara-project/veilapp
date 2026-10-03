@@ -127,6 +127,12 @@ pub fn icons_hidden() -> bool {
     ICONS_HIDDEN.load(Ordering::SeqCst)
 }
 
+/// Window ids hidden by the current Hide state (may be stale after Control
+/// Center re-lays-out; Show restores these plus the freshly computed ones).
+pub fn hidden_window_ids() -> Vec<u32> {
+    HIDDEN_WINDOW_IDS.lock().unwrap().clone()
+}
+
 /// Restore any icons we hid — called on app exit so the user's menu bar is
 /// never left in a broken state.
 pub fn restore_hidden_icons() {

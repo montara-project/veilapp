@@ -23,6 +23,14 @@ static LAST_AUTO_HIDE: AtomicU64 = AtomicU64::new(0);
 
 #[tauri::command]
 fn list_apps() -> Vec<apps::AppInfo> {
+    // Self-healing: while icons are hidden, re-assert alpha on the current
+    // third-party windows — Control Center recreates hosted windows with
+    // fresh ids as it re-lays-out the bar.
+    if ax_menubar::is_trusted() && menubar::icons_hidden() {
+        if let Some(ids) = apps::third_party_window_ids() {
+            menubar::set_icons_hidden(&ids, true);
+        }
+    }
     apps::list_menu_bar_apps()
 }
 
@@ -38,15 +46,26 @@ fn activate_app(pid: i32) -> bool {
 
 #[tauri::command]
 fn toggle_menu_bar_icons() -> bool {
-    // Hide every hosted third-party menu bar icon (system items and our own
-    // tray window are excluded). Without Accessibility, fall back to the
-    // wall spacer.
+    // Hide every hosted third-party menu bar icon (per the keep-list: our
+    // own tray window, Battery, Spotlight, Wi-Fi). Without Accessibility,
+    // fall back to the wall spacer.
     if !ax_menubar::is_trusted() {
         return menubar::toggle();
     }
     let hidden = !menubar::icons_hidden();
-    let ids = apps::third_party_window_ids().unwrap_or_default();
-    menubar::set_icons_hidden(&ids, hidden);
+    if hidden {
+        let ids = apps::third_party_window_ids().unwrap_or_default();
+        menubar::set_icons_hidden(&ids, true);
+    } else {
+        // Control Center recreates hosted windows with fresh ids as it
+        // re-lays-out, so restore both the recorded ids and whatever is
+        // third-party right now.
+        let mut ids = menubar::hidden_window_ids();
+        ids.extend(apps::third_party_window_ids().unwrap_or_default());
+        ids.sort_unstable();
+        ids.dedup();
+        menubar::set_icons_hidden(&ids, false);
+    }
     hidden
 }
 
@@ -180,6 +199,10 @@ pub fn run() {
             // the exact ordering is decided by the system; users can still
             // Cmd-drag both items into place if needed.
             menubar::init();
+
+            // Recover from a previous crashed session: any window we
+            // alpha-hid must start out visible again (fresh hidden-state).
+            ax_menubar::restore_all_hosted_windows();
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

@@ -108,7 +108,7 @@ pub fn third_party_window_ids() -> Option<Vec<u32>> {
         return Some(Vec::new());
     }
     let items = ax_menubar::menu_bar_items()?;
-    let own = ax_menubar::own_tray_window_id();
+    let own = ax_menubar::detect_own_tray_window(&windows);
     Some(compute_windows_to_hide(&windows, &items, own))
 }
 

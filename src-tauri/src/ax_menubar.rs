@@ -255,16 +255,46 @@ pub fn snapshot_before_tray() {
     );
 }
 
-/// Window ID of our own tray icon (the window that appeared after the
-/// snapshot). Detected lazily on first use and cached.
-pub fn own_tray_window_id() -> Option<u32> {
+/// Window ID of our own tray icon.
+///
+/// Control Center recreates hosted windows (fresh ids) whenever it
+/// re-lays-out the bar, so a cached id is validated against the current
+/// window list; when it is gone, the own window is re-detected as the
+/// leftmost hosted window that is neither in the startup snapshot nor a
+/// named system item (our item enters the bar at the left end).
+pub fn detect_own_tray_window(windows: &[HostWindow]) -> Option<u32> {
     if let Some(id) = *OWN_TRAY_ID.lock().unwrap() {
-        return Some(id);
+        if windows.iter().any(|w| w.window_id == id) {
+            return Some(id);
+        }
     }
-    let pre = PRE_TRAY_IDS.lock().unwrap().clone()?;
-    let fresh = host_windows()
-        .into_iter()
-        .find(|w| !pre.contains(&w.window_id))?;
-    *OWN_TRAY_ID.lock().unwrap() = Some(fresh.window_id);
-    Some(fresh.window_id)
+    let pre = PRE_TRAY_IDS.lock().unwrap().clone().unwrap_or_default();
+    let system_x: Vec<f64> = menu_bar_items()
+        .unwrap_or_default()
+        .iter()
+        .filter(|i| i.identifier.starts_with("com.apple.") && i.x > 0.0)
+        .map(|i| i.x)
+        .collect();
+    let candidate = windows
+        .iter()
+        .find(|w| {
+            !pre.contains(&w.window_id)
+                && !system_x.iter().any(|sx| (sx - w.x).abs() <= 10.0)
+        })
+        .map(|w| w.window_id);
+    if let Some(id) = candidate {
+        *OWN_TRAY_ID.lock().unwrap() = Some(id);
+    }
+    candidate
+}
+
+/// Make every hosted menu bar window visible again (alpha 1).
+///
+/// Run at startup: if a previous session crashed while icons were hidden,
+/// the bar would otherwise stay in its broken state forever.
+pub fn restore_all_hosted_windows() {
+    let ids: Vec<u32> = host_windows().iter().map(|w| w.window_id).collect();
+    if !ids.is_empty() {
+        crate::menubar::set_icons_hidden(&ids, false);
+    }
 }
