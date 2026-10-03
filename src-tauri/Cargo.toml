@@ -1,0 +1,47 @@
+[package]
+name = "veilapp"
+version = "0.1.0"
+description = "Veil App"
+authors = ["you"]
+license = ""
+repository = ""
+edition = "2024"
+rust-version = "1.90"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[lib]
+name = "veilapp_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.7.1" }
+
+[dependencies]
+serde_json = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+log = "0.4"
+tauri = { version = "2.12.1", features = ["tray-icon", "macos-private-api"] }
+tauri-plugin-log = "2"
+base64 = "0.22"
+libproc = "0.14"
+# Keep in lockstep with the objc2 stack tao/wry already use (see Cargo.lock).
+objc2 = "0.6"
+objc2-foundation = { version = "0.3", features = [
+  "NSArray",
+  "NSData",
+  "NSDictionary",
+  "NSGeometry",
+  "NSString",
+] }
+objc2-app-kit = { version = "0.3", features = [
+  "NSApplication",
+  "NSBitmapImageRep",
+  "NSGraphics",
+  "NSImage",
+  "NSResponder",
+  "NSRunningApplication",
+  "NSStatusBar",
+  "NSStatusItem",
+  "NSWorkspace",
+] }

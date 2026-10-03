@@ -1,0 +1,32 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Veil App</title>
+  </head>
+  <body>
+    <div id="panel">
+      <header>
+        <h1>Veil App</h1>
+        <span id="app-count">0 apps</span>
+      </header>
+
+      <main id="grid"></main>
+
+      <p id="hint">
+        Click an app to activate it. Hover and click ✕, or right-click, to quit
+        it. Hold ⌥ to Force Quit.
+      </p>
+
+      <footer>
+        <div id="segmented">
+          <button id="sort-name" class="active">Name</button>
+          <button id="sort-memory">Memory</button>
+        </div>
+        <button id="hide-icons">Hide icons</button>
+      </footer>
+    </div>
+    <script type="module" src="/src/main.ts"></script>
+  </body>
+</html>
