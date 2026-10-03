@@ -8,6 +8,11 @@ interface AppInfo {
   iconPng: string
 }
 
+// Same shape as the Rust `Settings`.
+interface Settings {
+  showMemoryUsage: boolean
+}
+
 const isTauri = '__TAURI_INTERNALS__' in window
 
 // Same shape as the Rust `AppInfo`; used when previewing the panel in a
@@ -25,6 +30,7 @@ const MOCK_APPS: AppInfo[] = [
 ]
 
 let apps: AppInfo[] = []
+let settings: Settings = { showMemoryUsage: true }
 let sortBy: 'name' | 'memory' = 'name'
 let iconsHidden = false
 
@@ -87,6 +93,9 @@ function buildCard(app: AppInfo): HTMLElement {
 
 function render(): void {
   count.textContent = `${apps.length} apps`
+  // Re-read on every render: the setting lives in the settings window, and
+  // polling alongside the 5s list_apps refresh is the cheapest sync.
+  grid.classList.toggle('hide-memory', !settings.showMemoryUsage)
   const list = sorted()
   const activePids = new Set(list.map((a) => a.pid))
 
@@ -156,6 +165,13 @@ function sorted(): AppInfo[] {
 }
 
 async function refresh(): Promise<void> {
+  if (isTauri) {
+    try {
+      settings = await invoke<Settings>('get_settings')
+    } catch (err) {
+      console.error('get_settings failed', err)
+    }
+  }
   try {
     apps = isTauri ? await invoke<AppInfo[]>('list_apps') : MOCK_APPS
   } catch (err) {

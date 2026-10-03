@@ -7,6 +7,8 @@ Veil App lives in the menu bar. Click its icon to open a small translucent panel
 ## Features
 
 - **Menu bar popover** — a tray icon opens a compact panel drawn with the native macOS popover material (Liquid Glass on macOS 26, `NSVisualEffectView` on older systems), adapting to light/dark appearance automatically; it hides itself when it loses focus (or press `Esc`).
+- **Tray menu** — right-click the tray icon for a native menu: **Settings…** opens the settings window, **Quit Veil App** exits.
+- **Settings** — _General_: launch Veil App at login, show/hide the memory readout in the panel. _About_: what the app is, its version and identifier.
 - **Running apps at a glance** — every running third-party app with its icon, name, and live memory usage, refreshed every 5 seconds. Apps using ≥ 1 GB get a red badge. No special permissions needed.
 - **Hide menu bar icons** — one button hides every icon except Veil App, Wi-Fi, Battery, Spotlight, Control Center and the Clock; click again to bring everything back.
 - **App management** — click a card to activate an app, hover and click ✕ (or right-click) to quit it, hold `⌥` to force-quit.
@@ -34,6 +36,7 @@ A third-party icon that sits _between_ those system items also stays visible, be
 | Tooling    | [Bun](https://bun.sh)                                     |
 | macOS APIs | `objc2` / `objc2-app-kit` (`NSStatusItem`, `NSWorkspace`) |
 | Memory     | `libproc` (`proc_pid_rusage` → phys footprint)            |
+| Login item | [tauri-plugin-autostart](https://v2.tauri.app/plugin/autostart/) (`SMAppService`) |
 
 ## Getting started
 
@@ -74,23 +77,29 @@ Signing is optional: add the `APPLE_CERTIFICATE`, `APPLE_SIGNING_IDENTITY`, `APP
 ```
 src/                     # Panel UI (TypeScript + CSS)
 src/main.ts              # Grid rendering, sorting, IPC calls, mock data for browser preview
+src/settings.ts          # Settings window: General + About tabs
+settings.html            # Settings window markup
 src-tauri/
-  src/lib.rs             # App entry: tray icon, panel window, IPC commands
+  src/lib.rs             # App entry: tray icon + menu, panel & settings windows, IPC commands
   src/menubar.rs         # Hide/show via the wall status item + seeded item positions
   src/apps.rs            # Running third-party apps, memory, icons, quit/activate
+  src/settings.rs        # Persisted preferences (settings.json in the app config dir)
 scripts/install.sh       # One-command build: installs Rust/Bun if missing, clones, builds
 .github/workflows/release.yml  # Tag-push release pipeline (universal macOS)
 ```
 
 ### IPC commands
 
-| Command                 | Purpose                                           |
-| ----------------------- | ------------------------------------------------- |
-| `list_apps`             | Menu bar apps (Accessory policy) + memory + icons |
-| `quit_app(pid, force)`  | Terminate / force-terminate by PID                |
-| `activate_app(pid)`     | Bring an app to the foreground                    |
-| `toggle_menu_bar_icons` | Expand/collapse the wall                          |
-| `hide_panel`            | Hide the popover (bound to `Esc`)                 |
+| Command                            | Purpose                                           |
+| ---------------------------------- | ------------------------------------------------- |
+| `list_apps`                        | Menu bar apps (Accessory policy) + memory + icons |
+| `quit_app(pid, force)`             | Terminate / force-terminate by PID                |
+| `activate_app(pid)`                | Bring an app to the foreground                    |
+| `toggle_menu_bar_icons`            | Expand/collapse the wall                          |
+| `hide_panel`                       | Hide the popover (bound to `Esc`)                 |
+| `hide_settings`                    | Hide the settings window (bound to `Esc`)         |
+| `get_settings`                     | Read persisted preferences                        |
+| `set_show_memory_usage(show)`      | Persist the panel memory-usage preference         |
 
 ## Roadmap ideas
 

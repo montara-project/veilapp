@@ -217,6 +217,11 @@ h1 {
   font-weight: 500;
 }
 
+/* "Show memory usage" is off (Settings → General). */
+#grid.hide-memory .app-memory {
+  display: none;
+}
+
 #hint {
   font-size: 12px;
   line-height: 1.5;

@@ -1,15 +1,20 @@
 mod apps;
 mod menubar;
+mod settings;
 
 use std::sync::atomic::{AtomicU64, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use tauri::{
-    tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
     ActivationPolicy, Manager, PhysicalPosition, WebviewUrl, WebviewWindowBuilder,
+    menu::MenuBuilder,
+    tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
 };
 
 const PANEL_LABEL: &str = "panel";
+const SETTINGS_LABEL: &str = "settings";
+const MENU_SETTINGS: &str = "settings";
+const MENU_QUIT: &str = "quit";
 
 fn now_ms() -> u64 {
     SystemTime::now()
@@ -50,6 +55,25 @@ fn hide_panel(app: tauri::AppHandle) {
     }
 }
 
+#[tauri::command]
+fn hide_settings(app: tauri::AppHandle) {
+    if let Some(settings) = app.get_webview_window(SETTINGS_LABEL) {
+        let _ = settings.hide();
+    }
+}
+
+/// Show and focus the settings window. Created once at setup and reused, so
+/// reopening keeps the toggles in their current state.
+fn open_settings(app: &tauri::AppHandle) {
+    if let Some(settings) = app.get_webview_window(SETTINGS_LABEL) {
+        let _ = settings.show();
+        let _ = settings.unminimize();
+        // Activates the app on macOS (activateIgnoringOtherApps), which an
+        // accessory-policy app needs for the window to take keyboard focus.
+        let _ = settings.set_focus();
+    }
+}
+
 pub fn run() {
     tauri::Builder::default()
         .plugin(
@@ -57,9 +81,14 @@ pub fn run() {
                 .level(log::LevelFilter::Info)
                 .build(),
         )
+        .plugin(tauri_plugin_autostart::init(
+            tauri_plugin_autostart::MacosLauncher::LaunchAgent,
+            None,
+        ))
         // Menu bar app: no Dock icon, no main window.
         .setup(|app| {
             app.set_activation_policy(ActivationPolicy::Accessory);
+            settings::init(app.handle());
 
             let panel =
                 WebviewWindowBuilder::new(app, PANEL_LABEL, WebviewUrl::App("index.html".into()))
@@ -96,10 +125,48 @@ pub fn run() {
             });
 
             let handle = app.handle().clone();
+
+            // A regular decorated window, built hidden once and reused.
+            // Closing it (red traffic light, Esc) only hides it so its state
+            // survives and reopening is instant.
+            let settings_window = WebviewWindowBuilder::new(
+                app,
+                SETTINGS_LABEL,
+                WebviewUrl::App("settings.html".into()),
+            )
+            .title("Veil App Settings")
+            .inner_size(560.0, 460.0)
+            .minimizable(false)
+            .maximizable(false)
+            .resizable(false)
+            .visible(false)
+            .build()?;
+            let settings_for_close = settings_window.clone();
+            settings_window.on_window_event(move |event| {
+                if let tauri::WindowEvent::CloseRequested { api, .. } = event {
+                    api.prevent_close();
+                    let _ = settings_for_close.hide();
+                }
+            });
+
+            let menu = MenuBuilder::new(app)
+                .text(MENU_SETTINGS, "Settings…")
+                .separator()
+                .text(MENU_QUIT, "Quit Veil App")
+                .build()?;
+
             let tray = TrayIconBuilder::new()
-                .icon(app.default_window_icon().expect("default window icon").clone())
+                .icon(
+                    app.default_window_icon()
+                        .expect("default window icon")
+                        .clone(),
+                )
                 .icon_as_template(true)
                 .tooltip("Veil App")
+                // Right-click opens the native context menu; left click keeps
+                // toggling the panel below.
+                .menu(&menu)
+                .show_menu_on_left_click(false)
                 .on_tray_icon_event(move |_tray, event| {
                     let TrayIconEvent::Click {
                         position,
@@ -143,18 +210,26 @@ pub fn run() {
                         tauri::Size::Logical(s) => (s.width, s.height),
                     };
                     let size = panel.outer_size().unwrap_or_default();
-                    let mut x = (tray_x + tray_w / 2.0 - f64::from(size.width) / 2.0).round() as i32;
+                    let mut x =
+                        (tray_x + tray_w / 2.0 - f64::from(size.width) / 2.0).round() as i32;
                     // Keep the panel fully on screen when the tray icon sits
                     // near the right edge, with an 8pt margin.
                     if let Some(m) = &monitor {
                         let margin = (8.0 * scale).round() as i32;
                         let right = m.position().x + m.size().width as i32 - margin;
-                        x = x.min(right - size.width as i32).max(m.position().x + margin);
+                        x = x
+                            .min(right - size.width as i32)
+                            .max(m.position().x + margin);
                     }
                     let y = (tray_y + tray_h + 4.0 * scale).round() as i32;
                     let _ = panel.set_position(PhysicalPosition::new(x, y));
                     let _ = panel.show();
                     let _ = panel.set_focus();
+                })
+                .on_menu_event(|app, event| match event.id().as_ref() {
+                    MENU_SETTINGS => open_settings(app),
+                    MENU_QUIT => app.exit(0),
+                    _ => {}
                 })
                 .build(app)?;
 
@@ -172,7 +247,10 @@ pub fn run() {
             quit_app,
             activate_app,
             toggle_menu_bar_icons,
-            hide_panel
+            hide_panel,
+            hide_settings,
+            settings::get_settings,
+            settings::set_show_memory_usage
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
