@@ -33,25 +33,6 @@ const count = document.querySelector<HTMLSpanElement>('#app-count')!
 const hideBtn = document.querySelector<HTMLButtonElement>('#hide-icons')!
 const sortNameBtn = document.querySelector<HTMLButtonElement>('#sort-name')!
 const sortMemoryBtn = document.querySelector<HTMLButtonElement>('#sort-memory')!
-const axBanner = document.querySelector<HTMLDivElement>('#ax-banner')!
-
-async function checkAccessibility(): Promise<void> {
-  if (!isTauri) {
-    axBanner.hidden = true
-    return
-  }
-  try {
-    axBanner.hidden = await invoke<boolean>('accessibility_granted')
-  } catch {
-    axBanner.hidden = true
-  }
-}
-
-axBanner.querySelector<HTMLButtonElement>('#ax-enable')!.addEventListener('click', () => {
-  void invoke('request_accessibility')
-    .then(() => checkAccessibility())
-    .catch(() => {})
-})
 
 // Existing cards keyed by PID so refreshes update nodes in place. Recreating
 // the whole grid every 5s re-decodes icons and re-renders the blurred panel,
@@ -182,7 +163,6 @@ async function refresh(): Promise<void> {
     return
   }
   render()
-  void checkAccessibility()
 }
 
 async function quitApp(pid: number, force: boolean): Promise<void> {

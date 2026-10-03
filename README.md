@@ -7,7 +7,7 @@ Veil App lives in the menu bar. Click its icon to open a small translucent panel
 ## Features
 
 - **Menu bar popover** — a tray icon opens a compact panel drawn with the native macOS popover material (Liquid Glass on macOS 26, `NSVisualEffectView` on older systems), adapting to light/dark appearance automatically; it hides itself when it loses focus (or press `Esc`).
-- **Menu bar apps at a glance** — the actual menu bar items, read through the Accessibility API (macOS 26 hosts all status items under Control Center), mapped to their running apps with icon, name, and live memory usage, refreshed every 5 seconds. Apps using ≥ 1 GB get a red badge. Needs the Accessibility permission — without it the panel falls back to listing background (Accessory-policy) apps and shows an _Enable…_ banner.
+- **Running apps at a glance** — every running third-party app with its icon, name, and live memory usage, refreshed every 5 seconds. Apps using ≥ 1 GB get a red badge. No special permissions needed.
 - **Hide menu bar icons** — one button hides every icon except Veil App, Wi-Fi, Battery, Spotlight, Control Center and the Clock; click again to bring everything back.
 - **App management** — click a card to activate an app, hover and click ✕ (or right-click) to quit it, hold `⌥` to force-quit.
 - **Sort by Name or Memory.**
@@ -27,13 +27,13 @@ A third-party icon that sits _between_ those system items also stays visible, be
 
 ## Tech stack
 
-| Layer      | Choice                                                                       |
-| ---------- | ---------------------------------------------------------------------------- |
-| Framework  | [Tauri 2](https://v2.tauri.app) (Rust + WebView)                             |
-| Frontend   | TypeScript + Vite (vanilla, no framework)                                    |
-| Tooling    | [Bun](https://bun.sh)                                                        |
-| macOS APIs | `objc2` / `objc2-app-kit` (`NSStatusItem`, `NSWorkspace`), Accessibility API |
-| Memory     | `libproc` (`proc_pid_rusage` → phys footprint)                               |
+| Layer      | Choice                                                    |
+| ---------- | --------------------------------------------------------- |
+| Framework  | [Tauri 2](https://v2.tauri.app) (Rust + WebView)          |
+| Frontend   | TypeScript + Vite (vanilla, no framework)                 |
+| Tooling    | [Bun](https://bun.sh)                                     |
+| macOS APIs | `objc2` / `objc2-app-kit` (`NSStatusItem`, `NSWorkspace`) |
+| Memory     | `libproc` (`proc_pid_rusage` → phys footprint)            |
 
 ## Getting started
 
@@ -65,8 +65,7 @@ src/main.ts              # Grid rendering, sorting, IPC calls, mock data for bro
 src-tauri/
   src/lib.rs             # App entry: tray icon, panel window, IPC commands
   src/menubar.rs         # Hide/show via the wall status item + seeded item positions
-  src/apps.rs            # Menu bar app list (AX items → running apps), memory, icons, quit/activate
-  src/ax_menubar.rs      # Accessibility permission check / prompt
+  src/apps.rs            # Running third-party apps, memory, icons, quit/activate
 .github/workflows/release.yml  # Tag-push release pipeline (universal macOS)
 ```
 
@@ -79,8 +78,6 @@ src-tauri/
 | `activate_app(pid)`     | Bring an app to the foreground                    |
 | `toggle_menu_bar_icons` | Expand/collapse the wall                          |
 | `hide_panel`            | Hide the popover (bound to `Esc`)                 |
-| `accessibility_granted` | Whether the Accessibility permission is on        |
-| `request_accessibility` | Show the system Accessibility prompt              |
 
 ## Roadmap ideas
 

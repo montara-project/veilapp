@@ -17,8 +17,6 @@
   --accent: #007aff;
   --badge-bg: rgba(255, 59, 48, 0.12);
   --badge-text: #d70015;
-  --banner-bg: rgba(0, 122, 255, 0.12);
-  --banner-text: rgba(0, 90, 200, 0.9);
   /* Opaque so the icon underneath doesn't show through the ✕ badge. */
   --quit-bg: rgb(236, 236, 240);
 }
@@ -34,8 +32,6 @@
     --accent: #0a84ff;
     --badge-bg: rgba(255, 69, 58, 0.18);
     --badge-text: #ff7a70;
-    --banner-bg: rgba(10, 132, 255, 0.18);
-    --banner-text: #cfe3ff;
     --quit-bg: rgb(88, 88, 92);
   }
 }
@@ -83,39 +79,6 @@ h1 {
 #app-count {
   font-size: 14px;
   color: var(--text-secondary);
-}
-
-#ax-banner {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  gap: 10px;
-  padding: 8px 12px;
-  border-radius: 10px;
-  background: var(--banner-bg);
-  font-size: 12px;
-  line-height: 1.4;
-  color: var(--banner-text);
-}
-
-#ax-banner[hidden] {
-  display: none;
-}
-
-#ax-banner button {
-  flex-shrink: 0;
-  border: none;
-  border-radius: 7px;
-  background: var(--accent);
-  color: #fff;
-  font-family: inherit;
-  font-size: 12px;
-  padding: 5px 12px;
-  cursor: pointer;
-}
-
-#ax-banner button:hover {
-  filter: brightness(1.1);
 }
 
 #grid {

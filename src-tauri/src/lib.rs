@@ -1,5 +1,4 @@
 mod apps;
-mod ax_menubar;
 mod menubar;
 
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -49,18 +48,6 @@ fn hide_panel(app: tauri::AppHandle) {
     if let Some(panel) = app.get_webview_window(PANEL_LABEL) {
         let _ = panel.hide();
     }
-}
-
-#[tauri::command]
-fn accessibility_granted() -> bool {
-    ax_menubar::is_trusted()
-}
-
-/// Asks macOS for the Accessibility permission; shows the system prompt that
-/// deep-links into System Settings on first use.
-#[tauri::command]
-fn request_accessibility() -> bool {
-    ax_menubar::request_access()
 }
 
 pub fn run() {
@@ -185,9 +172,7 @@ pub fn run() {
             quit_app,
             activate_app,
             toggle_menu_bar_icons,
-            hide_panel,
-            accessibility_granted,
-            request_accessibility
+            hide_panel
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
