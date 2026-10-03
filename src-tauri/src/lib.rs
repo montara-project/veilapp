@@ -77,7 +77,7 @@ pub fn run() {
             let panel =
                 WebviewWindowBuilder::new(app, PANEL_LABEL, WebviewUrl::App("index.html".into()))
                     .title("Veil App")
-                    .inner_size(400.0, 580.0)
+                    .inner_size(480.0, 580.0)
                     .decorations(false)
                     .transparent(true)
                     .always_on_top(true)
@@ -142,12 +142,11 @@ pub fn run() {
                     // cursor position — clicking the top or bottom of the
                     // icon must not change the gap. 4pt below the icon puts
                     // the glass right under the menu bar on any scale factor.
-                    let scale = panel
+                    let monitor = panel
                         .monitor_from_point(position.x, position.y)
                         .ok()
-                        .flatten()
-                        .map(|m| m.scale_factor())
-                        .unwrap_or(2.0);
+                        .flatten();
+                    let scale = monitor.as_ref().map(|m| m.scale_factor()).unwrap_or(2.0);
                     let (tray_x, tray_y) = match rect.position {
                         tauri::Position::Physical(p) => (f64::from(p.x), f64::from(p.y)),
                         tauri::Position::Logical(p) => (p.x, p.y),
@@ -157,7 +156,14 @@ pub fn run() {
                         tauri::Size::Logical(s) => (s.width, s.height),
                     };
                     let size = panel.outer_size().unwrap_or_default();
-                    let x = (tray_x + tray_w / 2.0 - f64::from(size.width) / 2.0).round() as i32;
+                    let mut x = (tray_x + tray_w / 2.0 - f64::from(size.width) / 2.0).round() as i32;
+                    // Keep the panel fully on screen when the tray icon sits
+                    // near the right edge, with an 8pt margin.
+                    if let Some(m) = &monitor {
+                        let margin = (8.0 * scale).round() as i32;
+                        let right = m.position().x + m.size().width as i32 - margin;
+                        x = x.min(right - size.width as i32).max(m.position().x + margin);
+                    }
                     let y = (tray_y + tray_h + 4.0 * scale).round() as i32;
                     let _ = panel.set_position(PhysicalPosition::new(x, y));
                     let _ = panel.show();

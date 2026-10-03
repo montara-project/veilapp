@@ -1,6 +1,6 @@
 # Veil App
 
-A macOS menu bar app that keeps your menu bar clean and tidy — a lightweight, open take on [ClearBar](https://clearbar.app) / [Hidden Bar](https://github.com/dwarvesf/hidden).
+A macOS menu bar app that keeps your menu bar clean and tidy — a lightweight alternative to [ClearBarMac](https://clearbarmac.app/) and [Hidden Bar](https://github.com/dwarvesf/hidden).
 
 Veil App lives in the menu bar. Click its icon to open a small translucent panel that lists every app that has an icon in your menu bar — with its icon, name, and live memory usage — and lets you **hide the menu bar icons you don't want to see** with one click.
 
