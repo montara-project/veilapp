@@ -23,14 +23,6 @@ static LAST_AUTO_HIDE: AtomicU64 = AtomicU64::new(0);
 
 #[tauri::command]
 fn list_apps() -> Vec<apps::AppInfo> {
-    // Self-healing: while icons are hidden, re-assert alpha on the current
-    // third-party windows — Control Center recreates hosted windows with
-    // fresh ids as it re-lays-out the bar.
-    if ax_menubar::is_trusted() && menubar::icons_hidden() {
-        if let Some(ids) = apps::third_party_window_ids() {
-            menubar::set_icons_hidden(&ids, true);
-        }
-    }
     apps::list_menu_bar_apps()
 }
 
@@ -46,27 +38,10 @@ fn activate_app(pid: i32) -> bool {
 
 #[tauri::command]
 fn toggle_menu_bar_icons() -> bool {
-    // Hide every hosted third-party menu bar icon (per the keep-list: our
-    // own tray window, Battery, Spotlight, Wi-Fi). Without Accessibility,
-    // fall back to the wall spacer.
-    if !ax_menubar::is_trusted() {
-        return menubar::toggle();
-    }
-    let hidden = !menubar::icons_hidden();
-    if hidden {
-        let ids = apps::third_party_window_ids().unwrap_or_default();
-        menubar::set_icons_hidden(&ids, true);
-    } else {
-        // Control Center recreates hosted windows with fresh ids as it
-        // re-lays-out, so restore both the recorded ids and whatever is
-        // third-party right now.
-        let mut ids = menubar::hidden_window_ids();
-        ids.extend(apps::third_party_window_ids().unwrap_or_default());
-        ids.sort_unstable();
-        ids.dedup();
-        menubar::set_icons_hidden(&ids, false);
-    }
-    hidden
+    // Expand/collapse the wall: hides every icon left of Veil App, keeping
+    // Veil App and the system items to its right (Spotlight, Control
+    // Center, Clock).
+    menubar::toggle()
 }
 
 #[tauri::command]
@@ -98,10 +73,6 @@ pub fn run() {
         // Menu bar app: no Dock icon, no main window.
         .setup(|app| {
             app.set_activation_policy(ActivationPolicy::Accessory);
-
-            // Snapshot the hosted status windows before our tray exists, so
-            // per-icon hiding can exclude the tray's own window.
-            ax_menubar::snapshot_before_tray();
 
             let panel =
                 WebviewWindowBuilder::new(app, PANEL_LABEL, WebviewUrl::App("index.html".into()))
@@ -138,7 +109,7 @@ pub fn run() {
             });
 
             let handle = app.handle().clone();
-            TrayIconBuilder::new()
+            let tray = TrayIconBuilder::new()
                 .icon(app.default_window_icon().expect("default window icon").clone())
                 .icon_as_template(true)
                 .tooltip("Veil App")
@@ -194,15 +165,13 @@ pub fn run() {
                 })
                 .build(app)?;
 
-            // Create the wall AFTER the tray so the tray icon ends up right of
-            // the wall and stays visible when the wall expands. On macOS 26
-            // the exact ordering is decided by the system; users can still
-            // Cmd-drag both items into place if needed.
-            menubar::init();
-
-            // Recover from a previous crashed session: any window we
-            // alpha-hid must start out visible again (fresh hidden-state).
-            ax_menubar::restore_all_hosted_windows();
+            // Seeded autosave positions put the wall directly left of the
+            // tray icon, so the tray stays visible when the wall expands.
+            tray.with_inner_tray_icon(|inner| {
+                if let Some(item) = inner.ns_status_item() {
+                    menubar::init(&item);
+                }
+            })?;
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -214,15 +183,6 @@ pub fn run() {
             accessibility_granted,
             request_accessibility
         ])
-        .build(tauri::generate_context!())
-        .expect("error while building tauri application")
-        .run(|_app, event| {
-            if matches!(
-                event,
-                tauri::RunEvent::ExitRequested { .. } | tauri::RunEvent::Exit
-            ) {
-                // Never leave the user's menu bar with invisible icons.
-                menubar::restore_hidden_icons();
-            }
-        });
+        .run(tauri::generate_context!())
+        .expect("error while running tauri application");
 }
