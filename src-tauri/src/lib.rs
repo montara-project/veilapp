@@ -38,14 +38,14 @@ fn activate_app(pid: i32) -> bool {
 
 #[tauri::command]
 fn toggle_menu_bar_icons() -> bool {
-    // With Accessibility granted, hide the third-party menu bar icons
-    // individually via window alpha (our own icon stays visible). Without
-    // it, fall back to the wall spacer.
+    // Hide every hosted third-party menu bar icon (system items and our own
+    // tray window are excluded). Without Accessibility, fall back to the
+    // wall spacer.
     if !ax_menubar::is_trusted() {
         return menubar::toggle();
     }
     let hidden = !menubar::icons_hidden();
-    let ids = apps::menu_bar_item_window_ids().unwrap_or_default();
+    let ids = apps::third_party_window_ids().unwrap_or_default();
     menubar::set_icons_hidden(&ids, hidden);
     hidden
 }
@@ -80,6 +80,10 @@ pub fn run() {
         .setup(|app| {
             app.set_activation_policy(ActivationPolicy::Accessory);
 
+            // Snapshot the hosted status windows before our tray exists, so
+            // per-icon hiding can exclude the tray's own window.
+            ax_menubar::snapshot_before_tray();
+
             let panel =
                 WebviewWindowBuilder::new(app, PANEL_LABEL, WebviewUrl::App("index.html".into()))
                     .title("Veil App")
@@ -100,7 +104,10 @@ pub fn run() {
                             .radius(16.0)
                             .build(),
                     )
-                    .shadow(true)
+                    // The square window shadow reads as a border around the
+                    // rounded glass material; the glass has its own edge
+                    // lighting, so no window shadow.
+                    .shadow(false)
                     .build()?;
 
             let panel_for_focus = panel.clone();
@@ -141,16 +148,27 @@ pub fn run() {
                         return;
                     }
 
-                    // All values are in physical pixels, so no scale factor is
-                    // needed: center the panel under the tray icon.
+                    // Anchor to the ICON's rect (physical pixels), not the
+                    // cursor position — clicking the top or bottom of the
+                    // icon must not change the gap. 4pt below the icon puts
+                    // the glass right under the menu bar on any scale factor.
+                    let scale = panel
+                        .monitor_from_point(position.x, position.y)
+                        .ok()
+                        .flatten()
+                        .map(|m| m.scale_factor())
+                        .unwrap_or(2.0);
+                    let (tray_x, tray_y) = match rect.position {
+                        tauri::Position::Physical(p) => (f64::from(p.x), f64::from(p.y)),
+                        tauri::Position::Logical(p) => (p.x, p.y),
+                    };
                     let (tray_w, tray_h) = match rect.size {
                         tauri::Size::Physical(s) => (f64::from(s.width), f64::from(s.height)),
                         tauri::Size::Logical(s) => (s.width, s.height),
                     };
                     let size = panel.outer_size().unwrap_or_default();
-                    let x =
-                        (position.x + tray_w / 2.0 - f64::from(size.width) / 2.0).round() as i32;
-                    let y = (position.y + tray_h + 6.0).round() as i32;
+                    let x = (tray_x + tray_w / 2.0 - f64::from(size.width) / 2.0).round() as i32;
+                    let y = (tray_y + tray_h + 4.0 * scale).round() as i32;
                     let _ = panel.set_position(PhysicalPosition::new(x, y));
                     let _ = panel.show();
                     let _ = panel.set_focus();

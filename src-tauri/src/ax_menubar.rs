@@ -17,6 +17,7 @@ use core_graphics::window::{
     kCGWindowNumber, kCGWindowOwnerName, kCGWindowOwnerPID, kCGNullWindowID,
 };
 use std::ffi::c_void;
+use std::sync::Mutex;
 
 type AXUIElementRef = *mut c_void;
 
@@ -47,19 +48,10 @@ struct AxPoint {
 pub struct MenuItem {
     pub title: String,
     pub description: String,
+    /// Accessibility identifier, when the system provides one.
+    pub identifier: String,
     /// On-screen x position of the icon, for matching the hosted window.
     pub x: f64,
-}
-
-impl MenuItem {
-    /// Best human-readable label for the item.
-    pub fn label(&self) -> &str {
-        if self.description.is_empty() {
-            &self.title
-        } else {
-            &self.description
-        }
-    }
 }
 
 /// Whether this process may use the Accessibility API.
@@ -190,6 +182,19 @@ pub fn host_windows() -> Vec<HostWindow> {
     out
 }
 
+/// One-shot deep dump of the AX menu bar tree, logged only when it changes.
+/// The hosted third-party items on macOS 26 have empty titles, so this shows
+/// where the app names actually live.
+fn dump_items_once(items: &[MenuItem], raw: &[String]) {
+    static LAST: Mutex<Vec<String>> = Mutex::new(Vec::new());
+    let mut last = LAST.lock().unwrap();
+    if *last != raw {
+        log::info!("AX menu bar dump: {raw:?}");
+        *last = raw.to_vec();
+    }
+    let _ = items;
+}
+
 /// All status items in the menu bar, in bar order.
 ///
 /// Returns `None` when the Accessibility permission is not granted, so the
@@ -216,13 +221,63 @@ pub fn menu_bar_items() -> Option<Vec<MenuItem>> {
     };
 
     let mut out = Vec::new();
+    let mut raw_items: Vec<String> = Vec::new();
     for child in items.iter() {
         let element = *child as AXUIElementRef;
-        out.push(MenuItem {
+        let item = MenuItem {
             title: string_attr(element, "AXTitle"),
             description: string_attr(element, "AXDescription"),
+            identifier: string_attr(element, "AXIdentifier"),
             x: position_attr(element),
-        });
+        };
+        raw_items.push(format!(
+            "title={:?} desc={:?} id={:?} x={:.0}",
+            item.title, item.description, item.identifier, item.x
+        ));
+        out.push(item);
     }
+
+    dump_items_once(&out, &raw_items);
     Some(out)
+}
+
+/// x positions of the AX-named system status items (Battery, Wi-Fi, Clock,
+/// Control Center) — the hosted windows aligned with them must never be
+/// hidden. `None` when the Accessibility permission is missing.
+pub fn system_item_positions() -> Option<Vec<f64>> {
+    Some(
+        menu_bar_items()?
+            .iter()
+            .filter(|i| i.identifier.starts_with("com.apple.") && i.x > 0.0)
+            .map(|i| i.x)
+            .collect(),
+    )
+}
+
+static PRE_TRAY_IDS: Mutex<Option<Vec<u32>>> = Mutex::new(None);
+static OWN_TRAY_ID: Mutex<Option<u32>> = Mutex::new(None);
+
+/// Snapshot the hosted status windows before the tray icon is created, so
+/// the tray's own window can later be identified as the newly appeared one.
+pub fn snapshot_before_tray() {
+    *PRE_TRAY_IDS.lock().unwrap() = Some(
+        host_windows()
+            .into_iter()
+            .map(|w| w.window_id)
+            .collect(),
+    );
+}
+
+/// Window ID of our own tray icon (the window that appeared after the
+/// snapshot). Detected lazily on first use and cached.
+pub fn own_tray_window_id() -> Option<u32> {
+    if let Some(id) = *OWN_TRAY_ID.lock().unwrap() {
+        return Some(id);
+    }
+    let pre = PRE_TRAY_IDS.lock().unwrap().clone()?;
+    let fresh = host_windows()
+        .into_iter()
+        .find(|w| !pre.contains(&w.window_id))?;
+    *OWN_TRAY_ID.lock().unwrap() = Some(fresh.window_id);
+    Some(fresh.window_id)
 }
