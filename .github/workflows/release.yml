@@ -4,7 +4,7 @@ name: Release macOS
 on:
   push:
     tags:
-      - 'v*'
+      - "v*"
 
 jobs:
   release:
@@ -26,7 +26,7 @@ jobs:
       - name: Install Rust stable with both macOS targets
         uses: dtolnay/rust-toolchain@stable
         with:
-          targets: aarch64-apple-darwin,x86_64-apple-darwin
+          targets: ${{ matrix.platform == 'macos-latest' && 'aarch64-apple-darwin,x86_64-apple-darwin' || '' }}
 
       - name: Cache Rust build
         uses: swatinem/rust-cache@v2
@@ -40,26 +40,14 @@ jobs:
         uses: tauri-apps/tauri-action@v0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          # Updater signing (minisign). Required: without the private key the
-          # .app.tar.gz/.sig artifacts are unsigned and tauri-action skips
-          # uploading latest.json, so the in-app updater finds nothing.
           TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
           TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
-          # Optional code signing & notarization. Add these repository secrets
-          # to ship signed builds; when they are empty the build stays unsigned
-          # and users will see a Gatekeeper warning on first launch.
-          APPLE_CERTIFICATE: ${{ secrets.APPLE_CERTIFICATE }}
-          APPLE_CERTIFICATE_PASSWORD: ${{ secrets.APPLE_CERTIFICATE_PASSWORD }}
-          APPLE_SIGNING_IDENTITY: ${{ secrets.APPLE_SIGNING_IDENTITY }}
-          APPLE_ID: ${{ secrets.APPLE_ID }}
-          APPLE_PASSWORD: ${{ secrets.APPLE_PASSWORD }}
-          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
         with:
           projectPath: .
           # Single universal binary: runs natively on Intel and Apple Silicon.
           args: --target universal-apple-darwin
           tagName: ${{ github.ref_name }}
-          releaseName: 'Veil App ${{ github.ref_name }}'
-          releaseBody: 'Download the .dmg below and drag Veil App into Applications.'
+          releaseName: "Veil App ${{ github.ref_name }}"
+          releaseBody: "Download the .dmg below and drag Veil App into Applications."
           releaseDraft: false
           prerelease: false

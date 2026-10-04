@@ -1,5 +1,18 @@
 {
   "$schema": "./node_modules/oxlint/configuration_schema.json",
   "plugins": ["typescript", "unicorn", "oxc", "import", "promise", "node"],
+  "categories": {
+    "correctness": "error"
+  },
+  "jsPlugins": ["eslint-plugin-perfectionist"],
+  "rules": {
+    "perfectionist/sort-imports": [
+      "error",
+      {
+        "type": "natural",
+        "order": "asc"
+      }
+    ]
+  },
   "ignorePatterns": ["dist", "src-tauri/target"]
 }
