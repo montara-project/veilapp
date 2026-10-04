@@ -8,8 +8,8 @@
     "build": "tsc && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
-    "lint": "oxlint && eslint .",
-    "lint:fix": "oxlint --fix && eslint . --fix",
+    "lint": "oxlint",
+    "lint:fix": "oxlint --fix",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
     "prepare": "husky",
@@ -39,7 +39,6 @@
   "lint-staged": {
     "*.{js,mjs,cjs,ts,mts,cts}": [
       "oxlint --fix",
-      "eslint --fix",
       "oxfmt"
     ],
     "*.{css,html,json,md}": [
