@@ -57,7 +57,9 @@ Already have a checkout? Run `./scripts/install.sh` from it.
 ```bash
 bun install
 bun run tauri dev      # run the app with hot reload
-bun run tauri build    # produce a local .app and .dmg
+# produce a local .app and .dmg; updater artifacts are skipped because the
+# signing private key only exists in CI
+bun run tauri build -c '{"bundle":{"createUpdaterArtifacts":false}}'
 bun run lint           # oxlint + eslint (import sorting via eslint-plugin-perfectionist)
 bun run format         # oxfmt, formats in place
 bun run release        # release-it: bump version, tag, push (triggers the release build)
@@ -81,8 +83,8 @@ Installed apps check `https://github.com/montara-project/veilapp/releases/latest
 
 This requires two repository secrets, already in place:
 
-- `TAURI_SIGNING_PRIVATE_KEY` — the minisign private key (`~/.tauri/veilapp.key`, generated with `bunx tauri signer generate -w ~/.tauri/veilapp.key -p ""`). It signs the `.app.tar.gz` updater artifacts and never leaves GitHub Secrets. **Losing it means existing installs can never receive a verified update again**, so keep a backup of the file outside the machine.
-- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` — empty string (the key has no password).
+- `TAURI_SIGNING_PRIVATE_KEY` — the minisign private key (`~/.tauri/veilapp.key`, generated with `bunx tauri signer generate -w ~/.tauri/veilapp.key`). It signs the `.app.tar.gz` updater artifacts and never leaves GitHub Secrets. **Losing it means existing installs can never receive a verified update again**, so keep a backup of the file outside the machine.
+- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` — the password chosen when the key was generated.
 
 ### Optional Apple code signing
 

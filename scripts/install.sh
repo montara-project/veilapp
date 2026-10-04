@@ -96,9 +96,14 @@ eject_stale_dmgs() {
 info "Installing frontend dependencies..."
 bun install
 
+# Updater artifacts need the minisign private key, which only CI has; without
+# it `tauri build` fails, so local builds skip them. The installed app still
+# checks for updates — this only affects producing update packages.
+LOCAL_CONF='{"bundle":{"createUpdaterArtifacts":false}}'
+
 eject_stale_dmgs
 info "Building Veil App (bun run tauri build)..."
-if ! bun run tauri build; then
+if ! bun run tauri build -c "$LOCAL_CONF"; then
   # Tauri's bundled create-dmg script only retries `hdiutil detach` on exit
   # code 16, but a transient "Resource busy" (Finder/Spotlight touching the
   # fresh volume) exits with 1, so the DMG step fails intermittently. The app
@@ -108,7 +113,7 @@ if ! bun run tauri build; then
     info "DMG bundling failed, retrying ($attempt/3)..."
     eject_stale_dmgs
     sleep 2
-    bun run tauri build --bundles dmg && break
+    bun run tauri build --bundles dmg -c "$LOCAL_CONF" && break
     (( attempt == 3 )) && fail "DMG bundling failed after 3 retries."
   done
 fi
