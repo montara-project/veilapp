@@ -8,8 +8,18 @@
   <body>
     <div id="settings">
       <nav id="tabs" role="tablist" aria-label="Settings sections">
-        <button id="tab-general" class="tab active" data-tab="general" role="tab" aria-selected="true">General</button>
-        <button id="tab-about" class="tab" data-tab="about" role="tab" aria-selected="false">About</button>
+        <button
+          id="tab-general"
+          class="tab active"
+          data-tab="general"
+          role="tab"
+          aria-selected="true"
+        >
+          General
+        </button>
+        <button id="tab-about" class="tab" data-tab="about" role="tab" aria-selected="false">
+          About
+        </button>
       </nav>
 
       <main>
@@ -17,7 +27,9 @@
           <div class="row">
             <div class="row-text">
               <span class="row-title">Launch Veil App at login</span>
-              <span class="row-sub">Keep Veil App in the menu bar after restarting or logging out.</span>
+              <span class="row-sub"
+                >Keep Veil App in the menu bar after restarting or logging out.</span
+              >
             </div>
             <label class="switch">
               <input type="checkbox" id="launch-at-login" />
@@ -28,7 +40,9 @@
           <div class="row">
             <div class="row-text">
               <span class="row-title">Show memory usage</span>
-              <span class="row-sub">Display each app's memory usage under its name in the panel.</span>
+              <span class="row-sub"
+                >Display each app's memory usage under its name in the panel.</span
+              >
             </div>
             <label class="switch">
               <input type="checkbox" id="show-memory" />
@@ -43,18 +57,19 @@
             <h2>Veil App</h2>
             <p class="version">Version <span id="app-version"></span></p>
             <p class="blurb">
-              A macOS menu bar app that keeps your menu bar clean and tidy.
-              Veil App lives in the menu bar: it lists every running menu bar
-              app with its live memory usage, and hides the icons you don't
-              want to see behind a one-click wall — a lightweight alternative
-              to Hidden Bar and Ice.
+              A macOS menu bar app that keeps your menu bar clean and tidy. Veil App lives in the
+              menu bar: it lists every running menu bar app with its live memory usage, and hides
+              the icons you don't want to see behind a one-click wall — a lightweight alternative to
+              Hidden Bar and Ice.
             </p>
           </div>
           <div class="bottom">
             <div class="updater">
               <div class="row-text">
                 <span class="row-title" id="update-status">You're up to date.</span>
-                <span class="row-sub" id="update-detail">Veil App checks for updates when it starts.</span>
+                <span class="row-sub" id="update-detail"
+                  >Veil App checks for updates when it starts.</span
+                >
               </div>
               <button id="update-button" class="update-button" hidden>Check for Updates</button>
             </div>

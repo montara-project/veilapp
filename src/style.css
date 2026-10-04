@@ -5,7 +5,7 @@
 
 :root {
   color-scheme: light dark;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
   -webkit-font-smoothing: antialiased;
 
   --text-primary: rgba(0, 0, 0, 0.85);

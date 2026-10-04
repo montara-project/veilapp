@@ -1,8 +1,9 @@
-import { invoke } from '@tauri-apps/api/core'
 import { getVersion } from '@tauri-apps/api/app'
+import { invoke } from '@tauri-apps/api/core'
 import { disable, enable, isEnabled } from '@tauri-apps/plugin-autostart'
-import { check, type Update } from '@tauri-apps/plugin-updater'
 import { relaunch } from '@tauri-apps/plugin-process'
+import { check, type Update } from '@tauri-apps/plugin-updater'
+
 import './settings.css'
 
 // Same shape as the Rust `Settings`.
@@ -99,7 +100,7 @@ async function checkForUpdate(manual: boolean): Promise<void> {
       setUpdateUI(
         "You're up to date.",
         `Veil App ${await getVersion()} is the latest version.`,
-        'Check for Updates',
+        'Check for Updates'
       )
     }
   } catch (err) {
@@ -125,7 +126,7 @@ async function downloadAndInstall(): Promise<void> {
         setUpdateUI(
           'Downloading update…',
           total ? `${Math.round((got / total) * 100)}%` : '',
-          'Downloading…',
+          'Downloading…'
         )
       } else if (ev.event === 'Finished') {
         setUpdateUI('Restarting…', '', 'Downloading…')

@@ -1,23 +1,50 @@
 {
   "name": "veilapp",
-  "private": true,
   "version": "0.0.0",
+  "private": true,
   "type": "module",
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
     "preview": "vite preview",
-    "tauri": "tauri"
-  },
-  "devDependencies": {
-    "@tauri-apps/cli": "^2.12.1",
-    "typescript": "~6.0.3",
-    "vite": "^8.3.2"
+    "tauri": "tauri",
+    "lint": "oxlint && eslint .",
+    "lint:fix": "oxlint --fix && eslint . --fix",
+    "format": "oxfmt",
+    "format:check": "oxfmt --check",
+    "prepare": "husky",
+    "release": "release-it"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.12.1",
     "@tauri-apps/plugin-autostart": "^2.7.0",
     "@tauri-apps/plugin-process": "^2.4.0",
     "@tauri-apps/plugin-updater": "^2.13.1"
+  },
+  "devDependencies": {
+    "@commitlint/cli": "^21.2.3",
+    "@commitlint/config-conventional": "^21.2.3",
+    "@release-it/bumper": "^8.0.1",
+    "@tauri-apps/cli": "^2.12.1",
+    "eslint": "^10.12.0",
+    "eslint-plugin-perfectionist": "^5.12.1",
+    "husky": "^9.1.7",
+    "lint-staged": "^17.6.0",
+    "oxfmt": "^0.71.0",
+    "oxlint": "^1.86.0",
+    "release-it": "^21.1.0",
+    "typescript": "~6.0.3",
+    "typescript-eslint": "^8.71.0",
+    "vite": "^8.3.2"
+  },
+  "lint-staged": {
+    "*.{js,mjs,cjs,ts,mts,cts}": [
+      "oxlint --fix",
+      "eslint --fix",
+      "oxfmt"
+    ],
+    "*.{css,html,json,md}": [
+      "oxfmt"
+    ]
   }
 }

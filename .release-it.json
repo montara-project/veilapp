@@ -1,0 +1,19 @@
+{
+  "$schema": "https://unpkg.com/release-it/schema/release-it.json",
+  "git": {
+    "commitMessage": "chore: release v${version}",
+    "tagName": "v${version}",
+    "tagAnnotation": "Release v${version}"
+  },
+  "github": {
+    "release": false
+  },
+  "plugins": {
+    "@release-it/bumper": {
+      "out": ["src-tauri/tauri.conf.json", "src-tauri/Cargo.toml"]
+    }
+  },
+  "hooks": {
+    "after:bump": "bun scripts/sync-cargo-lock.mjs"
+  }
+}

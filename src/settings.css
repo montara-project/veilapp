@@ -3,7 +3,7 @@
 
 :root {
   color-scheme: light dark;
-  font-family: -apple-system, BlinkMacSystemFont, "SF Pro Text", "Helvetica Neue", sans-serif;
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Helvetica Neue', sans-serif;
   -webkit-font-smoothing: antialiased;
 
   --window-bg: rgb(246, 246, 246);
@@ -157,7 +157,7 @@ main {
 }
 
 .switch .knob::after {
-  content: "";
+  content: '';
   position: absolute;
   top: 2px;
   left: 2px;

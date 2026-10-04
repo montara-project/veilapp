@@ -29,13 +29,13 @@ A third-party icon that sits _between_ those system items also stays visible, be
 
 ## Tech stack
 
-| Layer      | Choice                                                    |
-| ---------- | --------------------------------------------------------- |
-| Framework  | [Tauri 2](https://v2.tauri.app) (Rust + WebView)          |
-| Frontend   | TypeScript + Vite (vanilla, no framework)                 |
-| Tooling    | [Bun](https://bun.sh)                                     |
-| macOS APIs | `objc2` / `objc2-app-kit` (`NSStatusItem`, `NSWorkspace`) |
-| Memory     | `libproc` (`proc_pid_rusage` → phys footprint)            |
+| Layer      | Choice                                                                            |
+| ---------- | --------------------------------------------------------------------------------- |
+| Framework  | [Tauri 2](https://v2.tauri.app) (Rust + WebView)                                  |
+| Frontend   | TypeScript + Vite (vanilla, no framework)                                         |
+| Tooling    | [Bun](https://bun.sh)                                                             |
+| macOS APIs | `objc2` / `objc2-app-kit` (`NSStatusItem`, `NSWorkspace`)                         |
+| Memory     | `libproc` (`proc_pid_rusage` → phys footprint)                                    |
 | Login item | [tauri-plugin-autostart](https://v2.tauri.app/plugin/autostart/) (`SMAppService`) |
 
 ## Getting started
@@ -58,7 +58,12 @@ Already have a checkout? Run `./scripts/install.sh` from it.
 bun install
 bun run tauri dev      # run the app with hot reload
 bun run tauri build    # produce a local .app and .dmg
+bun run lint           # oxlint + eslint (import sorting via eslint-plugin-perfectionist)
+bun run format         # oxfmt, formats in place
+bun run release        # release-it: bump version, tag, push (triggers the release build)
 ```
+
+Commits must follow [Conventional Commits](https://www.conventionalcommits.org) (enforced by commitlint via a husky `commit-msg` hook), and `lint-staged` runs oxlint/eslint/oxfmt on staged files on every commit. `bun run release` bumps the version in `package.json`, `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`, and `Cargo.lock` in one go, commits as `chore: release vX.Y.Z`, tags `vX.Y.Z`, and pushes.
 
 > The app has no Dock icon and no main window — look for its icon in the menu bar.
 
@@ -101,16 +106,16 @@ scripts/install.sh       # One-command build: installs Rust/Bun if missing, clon
 
 ### IPC commands
 
-| Command                            | Purpose                                           |
-| ---------------------------------- | ------------------------------------------------- |
-| `list_apps`                        | Menu bar apps (Accessory policy) + memory + icons |
-| `quit_app(pid, force)`             | Terminate / force-terminate by PID                |
-| `activate_app(pid)`                | Bring an app to the foreground                    |
-| `toggle_menu_bar_icons`            | Expand/collapse the wall                          |
-| `hide_panel`                       | Hide the popover (bound to `Esc`)                 |
-| `hide_settings`                    | Hide the settings window (bound to `Esc`)         |
-| `get_settings`                     | Read persisted preferences                        |
-| `set_show_memory_usage(show)`      | Persist the panel memory-usage preference         |
+| Command                       | Purpose                                           |
+| ----------------------------- | ------------------------------------------------- |
+| `list_apps`                   | Menu bar apps (Accessory policy) + memory + icons |
+| `quit_app(pid, force)`        | Terminate / force-terminate by PID                |
+| `activate_app(pid)`           | Bring an app to the foreground                    |
+| `toggle_menu_bar_icons`       | Expand/collapse the wall                          |
+| `hide_panel`                  | Hide the popover (bound to `Esc`)                 |
+| `hide_settings`               | Hide the settings window (bound to `Esc`)         |
+| `get_settings`                | Read persisted preferences                        |
+| `set_show_memory_usage(show)` | Persist the panel memory-usage preference         |
 
 ## Roadmap ideas
 

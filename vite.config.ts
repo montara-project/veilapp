@@ -1,5 +1,5 @@
-import { fileURLToPath, URL } from "node:url";
-import { defineConfig } from "vite";
+import { fileURLToPath, URL } from 'node:url'
+import { defineConfig } from 'vite'
 
 // https://tauri.app/start/frontend/vite/
 export default defineConfig({
@@ -9,8 +9,8 @@ export default defineConfig({
     rollupOptions: {
       // The tray panel (index.html) and the settings window (settings.html).
       input: {
-        index: fileURLToPath(new URL("./index.html", import.meta.url)),
-        settings: fileURLToPath(new URL("./settings.html", import.meta.url)),
+        index: fileURLToPath(new URL('./index.html', import.meta.url)),
+        settings: fileURLToPath(new URL('./settings.html', import.meta.url)),
       },
     },
   },
@@ -18,7 +18,7 @@ export default defineConfig({
     // Fail instead of silently picking another port — tauri.conf.json points here.
     strictPort: true,
     watch: {
-      ignored: ["**/src-tauri/**"],
+      ignored: ['**/src-tauri/**'],
     },
   },
-});
+})
