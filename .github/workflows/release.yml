@@ -4,7 +4,7 @@ name: Release macOS
 on:
   push:
     tags:
-      - "v*"
+      - 'v*'
 
 jobs:
   release:
@@ -47,7 +47,7 @@ jobs:
           # Single universal binary: runs natively on Intel and Apple Silicon.
           args: --target universal-apple-darwin
           tagName: ${{ github.ref_name }}
-          releaseName: "Veil App ${{ github.ref_name }}"
-          releaseBody: "Download the .dmg below and drag Veil App into Applications."
+          releaseName: 'Veil App ${{ github.ref_name }}'
+          releaseBody: 'Download the .dmg below and drag Veil App into Applications.'
           releaseDraft: false
           prerelease: false
