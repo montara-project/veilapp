@@ -12,8 +12,12 @@
     "lint:fix": "oxlint --fix",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
-    "prepare": "husky",
-    "release": "release-it"
+    "release": "release-it",
+    "release:pre": "release-it --preRelease=beta",
+    "release:patch": "release-it patch",
+    "release:minor": "release-it minor",
+    "release:major": "release-it major",
+    "prepare": "husky"
   },
   "dependencies": {
     "@tauri-apps/api": "^2.12.1",
