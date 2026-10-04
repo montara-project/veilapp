@@ -225,7 +225,50 @@ main {
   flex-direction: column;
   align-items: center;
   gap: 4px;
-  padding: 14px 0 4px;
+  padding: 14px 0 16px;
   font-size: 11px;
   color: var(--text-secondary);
+}
+
+/* Updater row in the About pane, above .meta. */
+.bottom {
+  display: flex;
+  flex-direction: column;
+}
+
+.updater {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  margin: 0 20px 10px;
+  padding: 12px 14px;
+  border-top: 1px solid var(--separator);
+  border-bottom: 1px solid var(--separator);
+}
+
+.update-button {
+  flex-shrink: 0;
+  border: none;
+  border-radius: 7px;
+  padding: 6px 14px;
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 500;
+  color: #fff;
+  background: var(--accent);
+  cursor: pointer;
+}
+
+.update-button:hover:enabled {
+  filter: brightness(1.08);
+}
+
+.update-button:active:enabled {
+  filter: brightness(0.92);
+}
+
+.update-button:disabled {
+  opacity: 0.5;
+  cursor: default;
 }

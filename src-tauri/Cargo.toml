@@ -1,6 +1,6 @@
 [package]
 name = "veilapp"
-version = "0.1.0"
+version = "0.0.0"
 description = "Veil App"
 authors = ["you"]
 license = ""
@@ -45,3 +45,5 @@ objc2-app-kit = { version = "0.3", features = [
   "NSWorkspace",
 ] }
 tauri-plugin-autostart = "2.7.0"
+tauri-plugin-updater = "2"
+tauri-plugin-process = "2"

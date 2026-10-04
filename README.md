@@ -70,7 +70,18 @@ A GitHub Actions workflow (`.github/workflows/release.yml`) builds a **universal
 git tag v0.1.0 && git push origin v0.1.0
 ```
 
-Signing is optional: add the `APPLE_CERTIFICATE`, `APPLE_SIGNING_IDENTITY`, `APPLE_ID`, `APPLE_PASSWORD`, and `APPLE_TEAM_ID` repository secrets to ship signed, notarized builds. Without them the build is unsigned and users will see a Gatekeeper warning on first launch (right-click → Open, or `xattr -cr Veil\ App.app`).
+### Auto-update
+
+Installed apps check `https://github.com/montara-project/veilapp/releases/latest/download/latest.json` at startup and offer an in-app update (Settings → About). Bump the version in `src-tauri/tauri.conf.json`, `src-tauri/Cargo.toml`, and `package.json`, then push a new tag — the running app downloads, verifies, and installs the update on its own, no rebuild or reinstall needed.
+
+This requires two repository secrets, already in place:
+
+- `TAURI_SIGNING_PRIVATE_KEY` — the minisign private key (`~/.tauri/veilapp.key`, generated with `bunx tauri signer generate -w ~/.tauri/veilapp.key -p ""`). It signs the `.app.tar.gz` updater artifacts and never leaves GitHub Secrets. **Losing it means existing installs can never receive a verified update again**, so keep a backup of the file outside the machine.
+- `TAURI_SIGNING_PRIVATE_KEY_PASSWORD` — empty string (the key has no password).
+
+### Optional Apple code signing
+
+Add the `APPLE_CERTIFICATE`, `APPLE_SIGNING_IDENTITY`, `APPLE_ID`, `APPLE_PASSWORD`, and `APPLE_TEAM_ID` repository secrets to ship signed, notarized builds. Without them the build is unsigned and users will see a Gatekeeper warning on first launch (right-click → Open, or `xattr -cr Veil\ App.app`). In-app updates are unaffected: the updater writes the bundle to disk directly, so no quarantine attribute is applied.
 
 ## Project structure
 

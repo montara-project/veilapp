@@ -78,6 +78,8 @@ pub fn run() {
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             None,
         ))
+        .plugin(tauri_plugin_updater::Builder::new().build())
+        .plugin(tauri_plugin_process::init())
         // Menu bar app: no Dock icon, no main window.
         .setup(|app| {
             app.set_activation_policy(ActivationPolicy::Accessory);

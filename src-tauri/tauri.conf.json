@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "veilapp",
-  "version": "0.1.0",
+  "version": "0.0.0",
   "identifier": "com.montara.veilapp",
   "build": {
     "frontendDist": "../dist",
@@ -27,7 +27,19 @@
       "icons/icon.ico"
     ],
     "macOS": {
+      "minimumSystemVersion": "11.0",
       "signingIdentity": "-"
+    },
+    "createUpdaterArtifacts": true,
+    "category": "Menubar",
+    "shortDescription": "Hide menu bar and monitoring memory usage"
+  },
+  "plugins": {
+    "updater": {
+      "pubkey": "dW50cnVzdGVkIGNvbW1lbnQ6IG1pbmlzaWduIHB1YmxpYyBrZXk6IDMzREFGN0Y2QTUyNzVFQTkKUldTcFhpZWw5dmZhTTBxbDBtdElaUXVhOWJSUTdXdHdlYjRLSmxVczZqaHBHbEVlQnZCOWRwRFUK",
+      "endpoints": [
+        "https://github.com/montara-project/veilapp/releases/latest/download/latest.json"
+      ]
     }
   }
 }
