@@ -1,5 +1,13 @@
 # Veil App
 
+<p align="center">
+  <a href="https://github.com/montara-project/veilapp/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/montara-project/veilapp?display_name=tag&sort=semver"></a>
+  <a href="https://github.com/montara-project/veilapp/actions/workflows/release.yml"><img alt="Build" src="https://img.shields.io/github/actions/workflow/status/montara-project/veilapp/release.yml?label=release"></a>
+  <a href="https://github.com/montara-project/veilapp/releases"><img alt="Downloads" src="https://img.shields.io/github/downloads/montara-project/veilapp/total"></a>
+  <a href="LICENSE"><img alt="MIT License" src="https://img.shields.io/badge/license-MIT-green.svg"></a>
+  <img alt="Platforms" src="https://img.shields.io/badge/platform-macOS-lightgrey">
+</p>
+
 A macOS menu bar app that keeps your menu bar clean and tidy — a lightweight alternative to [ClearBarMac](https://clearbarmac.app/) and [Hidden Bar](https://github.com/dwarvesf/hidden).
 
 Veil App lives in the menu bar. Click its icon to open a small translucent panel that lists every app that has an icon in your menu bar — with its icon, name, and live memory usage — and lets you **hide the menu bar icons you don't want to see** with one click.
