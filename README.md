@@ -41,8 +41,9 @@ Clicking a card reopens the app, the way clicking it in the Dock does. That is e
 
 Some apps ignore that request and only open from their own menu bar icon: tray apps that hide their window on close (WaDesk), and apps whose whole UI is a popover on the icon (Alfred, FineTune). For those, Veil App waits 0.8 s for a window, and if none shows up it clicks the app's menu bar icon for you:
 
-1. If icons are hidden, the wall collapses first. An icon has to be on the bar to be clicked, and a popover anchors to it. The icons stay shown afterwards; press **Hide icons** again when you are done.
+1. If icons are hidden, the wall collapses first. An icon has to be on the bar to be clicked, so the icons appear for a moment.
 2. Veil App finds the app's icon through the Accessibility API (`AXExtrasMenuBar`) and posts a real left click on it, then puts the cursor back where it was. A real click is used because many tray implementations react to mouse events, not to the accessibility "press" action.
+3. If the icons were hidden and the app now shows a window, the wall expands again, so the icons end up hidden as before. An app that opens a popover or menu on its icon instead keeps the icons shown, because the popover anchors to the icon; press **Hide icons** again when you are done.
 
 This is the only feature that needs the **Accessibility permission**. macOS asks for it the first time a card needs the icon click; enable Veil App under _System Settings → Privacy & Security → Accessibility_ and click the card again. Without the permission everything else keeps working, and such cards simply do nothing.
 

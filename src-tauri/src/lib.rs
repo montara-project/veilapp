@@ -47,6 +47,27 @@ const LAYOUT_WAIT: Duration = Duration::from_millis(300);
 /// own Hide/Show button, so the button label stays right.
 const EVENT_ICONS_HIDDEN: &str = "icons-hidden";
 
+/// Wait up to `WINDOW_WAIT` for `pid` to show a normal window.
+fn wait_for_window(pid: i32) -> bool {
+    let deadline = std::time::Instant::now() + WINDOW_WAIT;
+    while std::time::Instant::now() < deadline {
+        if ax::has_window(pid) {
+            return true;
+        }
+        std::thread::sleep(Duration::from_millis(100));
+    }
+    false
+}
+
+/// Expand or collapse the wall from a background thread and tell the panel.
+fn set_icons_hidden(app: &tauri::AppHandle, hidden: bool) {
+    let handle = app.clone();
+    let _ = app.run_on_main_thread(move || {
+        menubar::set_hidden(hidden);
+        let _ = handle.emit(EVENT_ICONS_HIDDEN, hidden);
+    });
+}
+
 #[tauri::command]
 fn activate_app(app: tauri::AppHandle, pid: i32) -> bool {
     if !apps::activate_app(pid) {
@@ -59,28 +80,23 @@ fn activate_app(app: tauri::AppHandle, pid: i32) -> bool {
     // Some apps ignore the reopen above and only open from their own menu
     // bar icon. If no window shows up, click that icon for the user.
     std::thread::spawn(move || {
-        let deadline = std::time::Instant::now() + WINDOW_WAIT;
-        while std::time::Instant::now() < deadline {
-            if ax::has_window(pid) {
-                return;
-            }
-            std::thread::sleep(Duration::from_millis(100));
-        }
-        if !ax::trusted(true) || !ax::has_status_item(pid) {
+        if wait_for_window(pid) || !ax::trusted(true) || !ax::has_status_item(pid) {
             return;
         }
-        // The icon must be on the bar to be clicked, and a popover anchors
-        // to it, so bring the icons back first and leave them shown.
-        if menubar::is_hidden() {
-            let handle = app.clone();
-            let _ = app.run_on_main_thread(move || {
-                menubar::set_hidden(false);
-                let _ = handle.emit(EVENT_ICONS_HIDDEN, false);
-            });
+        // The icon must be on the bar to be clicked, so bring the icons
+        // back for the click.
+        let was_hidden = menubar::is_hidden();
+        if was_hidden {
+            set_icons_hidden(&app, false);
             std::thread::sleep(LAYOUT_WAIT);
         }
         if !ax::click_status_item(pid) {
             log::info!("no clickable menu bar icon for pid {pid}");
+        }
+        // Hide again once the app has a window of its own. A popover or
+        // menu anchors to the icon instead, so then the icons stay shown.
+        if was_hidden && wait_for_window(pid) {
+            set_icons_hidden(&app, true);
         }
     });
     true
