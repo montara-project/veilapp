@@ -17,6 +17,6 @@
     }
   },
   "hooks": {
-    "after:bump": "bun scripts/sync-cargo-lock.mjs"
+    "after:bump": "cd src-tauri && cargo update --workspace --offline"
   }
 }

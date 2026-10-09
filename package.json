@@ -6,17 +6,12 @@
   "scripts": {
     "dev": "vite",
     "build": "tsc && vite build",
-    "preview": "vite preview",
     "tauri": "tauri",
     "lint": "oxlint",
     "lint:fix": "oxlint --fix",
     "format": "oxfmt",
     "format:check": "oxfmt --check",
     "release": "release-it",
-    "release:pre": "release-it --preRelease=beta",
-    "release:patch": "release-it patch",
-    "release:minor": "release-it minor",
-    "release:major": "release-it major",
     "prepare": "husky"
   },
   "dependencies": {
@@ -37,7 +32,6 @@
     "oxlint": "^1.86.0",
     "release-it": "^21.1.0",
     "typescript": "~6.0.3",
-    "typescript-eslint": "^8.71.0",
     "vite": "^8.3.2"
   },
   "lint-staged": {

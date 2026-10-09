@@ -121,7 +121,7 @@ Add the `APPLE_CERTIFICATE`, `APPLE_SIGNING_IDENTITY`, `APPLE_ID`, `APPLE_PASSWO
 
 ```
 src/                     # Panel UI (TypeScript + CSS)
-src/main.ts              # Grid rendering, sorting, IPC calls, mock data for browser preview
+src/main.ts              # Grid rendering, sorting, IPC calls
 src/settings.ts          # Settings window: General + About tabs
 settings.html            # Settings window markup
 src-tauri/
@@ -142,8 +142,7 @@ scripts/install.sh       # One-command build: installs Rust/Bun if missing, clon
 | `quit_app(pid, force)`        | Terminate / force-terminate by PID                        |
 | `activate_app(pid)`           | Reopen an app; click its menu bar icon if no window shows |
 | `toggle_menu_bar_icons`       | Expand/collapse the wall                                  |
-| `hide_panel`                  | Hide the popover (bound to `Esc`)                         |
-| `hide_settings`               | Hide the settings window (bound to `Esc`)                 |
+| `hide_window(label)`          | Hide the panel or settings window (bound to `Esc`)        |
 | `get_settings`                | Read persisted preferences                                |
 | `set_show_memory_usage(show)` | Persist the panel memory-usage preference                 |
 

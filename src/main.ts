@@ -18,7 +18,6 @@ interface Settings {
 let apps: AppInfo[] = []
 let settings: Settings = { showMemoryUsage: true }
 let sortBy: 'name' | 'memory' = 'name'
-let iconsHidden = false
 
 const grid = document.querySelector<HTMLDivElement>('#grid')!
 const count = document.querySelector<HTMLSpanElement>('#app-count')!
@@ -181,8 +180,7 @@ sortNameBtn.addEventListener('click', () => setSort('name'))
 sortMemoryBtn.addEventListener('click', () => setSort('memory'))
 
 function setIconsHidden(hidden: boolean): void {
-  iconsHidden = hidden
-  hideBtn.textContent = iconsHidden ? 'Show icons' : 'Hide icons'
+  hideBtn.textContent = hidden ? 'Show icons' : 'Hide icons'
 }
 
 hideBtn.addEventListener('click', async () => {

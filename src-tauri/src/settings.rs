@@ -31,13 +31,10 @@ impl Settings {
     }
 
     fn load(app: &AppHandle) -> Self {
-        let Some(path) = Self::path(app) else {
-            return Self::default();
-        };
-        match fs::read_to_string(&path) {
-            Ok(json) => serde_json::from_str(&json).unwrap_or_default(),
-            Err(_) => Self::default(),
-        }
+        Self::path(app)
+            .and_then(|path| fs::read_to_string(path).ok())
+            .and_then(|json| serde_json::from_str(&json).ok())
+            .unwrap_or_default()
     }
 
     fn save(&self, app: &AppHandle) -> Result<(), String> {
@@ -66,7 +63,7 @@ pub fn set_show_memory_usage(app: AppHandle, state: State<'_, SettingsState>, sh
     let mut guard = state.0.lock().unwrap();
     guard.show_memory_usage = show;
     if let Err(err) = guard.save(&app) {
-        log::warn!("failed to save settings: {err}");
+        eprintln!("failed to save settings: {err}");
     }
 }
 

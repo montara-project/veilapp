@@ -91,7 +91,7 @@ fn activate_app(app: tauri::AppHandle, pid: i32) -> bool {
             std::thread::sleep(LAYOUT_WAIT);
         }
         if !ax::click_status_item(pid) {
-            log::info!("no clickable menu bar icon for pid {pid}");
+            eprintln!("no clickable menu bar icon for pid {pid}");
         }
         // Hide again once the app has a window of its own. A popover or
         // menu anchors to the icon instead, so then the icons stay shown.
@@ -131,11 +131,6 @@ fn open_settings(app: &tauri::AppHandle) {
 
 pub fn run() {
     tauri::Builder::default()
-        .plugin(
-            tauri_plugin_log::Builder::default()
-                .level(log::LevelFilter::Info)
-                .build(),
-        )
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
             None,

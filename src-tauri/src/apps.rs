@@ -10,7 +10,7 @@ use objc2_app_kit::{
 use objc2_foundation::{NSArray, NSDictionary, NSRect, NSSize};
 use serde::Serialize;
 
-#[derive(Serialize, Clone)]
+#[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct AppInfo {
     pub name: String,
@@ -46,22 +46,20 @@ pub fn list_menu_bar_apps() -> Vec<AppInfo> {
                 .unwrap_or_default(),
         });
     }
-    apps.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
     apps
 }
 
 pub fn quit_app(pid: i32, force: bool) -> bool {
-    let running = running_apps();
-    for app in running {
-        if app.processIdentifier() == pid {
-            return if force {
+    running_apps()
+        .into_iter()
+        .find(|app| app.processIdentifier() == pid)
+        .is_some_and(|app| {
+            if force {
                 app.forceTerminate()
             } else {
                 app.terminate()
-            };
-        }
-    }
-    false
+            }
+        })
 }
 
 /// Bring an app to the front the way clicking it in the Dock does.
