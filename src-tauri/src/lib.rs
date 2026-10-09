@@ -1,12 +1,13 @@
 mod apps;
+mod ax;
 mod menubar;
 mod settings;
 
 use std::sync::atomic::{AtomicU64, Ordering};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use tauri::{
-    ActivationPolicy, Manager, PhysicalPosition, WebviewUrl, WebviewWindowBuilder,
+    ActivationPolicy, Emitter, Manager, PhysicalPosition, WebviewUrl, WebviewWindowBuilder,
     menu::MenuBuilder,
     tray::{MouseButton, MouseButtonState, TrayIconBuilder, TrayIconEvent},
 };
@@ -35,9 +36,54 @@ fn quit_app(pid: i32, force: bool) -> bool {
     apps::quit_app(pid, force)
 }
 
+/// How long a reopened app gets to show a window before we fall back to
+/// clicking its menu bar icon, and how long the menu bar gets to lay its
+/// icons back out after the wall collapses. Tune if slow apps get their icon
+/// clicked on top of their window, or the click lands before the icon does.
+const WINDOW_WAIT: Duration = Duration::from_millis(800);
+const LAYOUT_WAIT: Duration = Duration::from_millis(300);
+
+/// Emitted with the new state whenever the wall changes without the panel's
+/// own Hide/Show button, so the button label stays right.
+const EVENT_ICONS_HIDDEN: &str = "icons-hidden";
+
 #[tauri::command]
-fn activate_app(pid: i32) -> bool {
-    apps::activate_app(pid)
+fn activate_app(app: tauri::AppHandle, pid: i32) -> bool {
+    if !apps::activate_app(pid) {
+        return false;
+    }
+    // Clicking our own icon would just toggle the panel.
+    if pid == std::process::id() as i32 {
+        return true;
+    }
+    // Some apps ignore the reopen above and only open from their own menu
+    // bar icon. If no window shows up, click that icon for the user.
+    std::thread::spawn(move || {
+        let deadline = std::time::Instant::now() + WINDOW_WAIT;
+        while std::time::Instant::now() < deadline {
+            if ax::has_window(pid) {
+                return;
+            }
+            std::thread::sleep(Duration::from_millis(100));
+        }
+        if !ax::trusted(true) || !ax::has_status_item(pid) {
+            return;
+        }
+        // The icon must be on the bar to be clicked, and a popover anchors
+        // to it, so bring the icons back first and leave them shown.
+        if menubar::is_hidden() {
+            let handle = app.clone();
+            let _ = app.run_on_main_thread(move || {
+                menubar::set_hidden(false);
+                let _ = handle.emit(EVENT_ICONS_HIDDEN, false);
+            });
+            std::thread::sleep(LAYOUT_WAIT);
+        }
+        if !ax::click_status_item(pid) {
+            log::info!("no clickable menu bar icon for pid {pid}");
+        }
+    });
+    true
 }
 
 #[tauri::command]

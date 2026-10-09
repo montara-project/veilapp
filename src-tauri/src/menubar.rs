@@ -138,10 +138,19 @@ pub fn init(tray: &NSStatusItem) {
 /// Expand or collapse the wall. Returns `true` when icons are now hidden.
 /// Must be called on the main thread.
 pub fn toggle() -> bool {
-    let hidden = !HIDDEN.load(Ordering::SeqCst);
+    let hidden = !is_hidden();
+    set_hidden(hidden);
+    hidden
+}
+
+pub fn is_hidden() -> bool {
+    HIDDEN.load(Ordering::SeqCst)
+}
+
+/// Must be called on the main thread.
+pub fn set_hidden(hidden: bool) {
     HIDDEN.store(hidden, Ordering::SeqCst);
     if let Some(item) = WALL.lock().unwrap().as_ref() {
         item.0.setLength(if hidden { WALL_EXPANDED } else { WALL_COLLAPSED });
     }
-    hidden
 }

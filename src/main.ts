@@ -1,4 +1,5 @@
 import { invoke } from '@tauri-apps/api/core'
+import { listen } from '@tauri-apps/api/event'
 
 import './style.css'
 
@@ -179,10 +180,17 @@ function setSort(mode: 'name' | 'memory'): void {
 sortNameBtn.addEventListener('click', () => setSort('name'))
 sortMemoryBtn.addEventListener('click', () => setSort('memory'))
 
-hideBtn.addEventListener('click', async () => {
-  iconsHidden = await invoke<boolean>('toggle_menu_bar_icons')
+function setIconsHidden(hidden: boolean): void {
+  iconsHidden = hidden
   hideBtn.textContent = iconsHidden ? 'Show icons' : 'Hide icons'
+}
+
+hideBtn.addEventListener('click', async () => {
+  setIconsHidden(await invoke<boolean>('toggle_menu_bar_icons'))
 })
+
+// Opening an app through its menu bar icon brings the icons back.
+void listen<boolean>('icons-hidden', (e) => setIconsHidden(e.payload))
 
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') void invoke('hide_window', { label: 'panel' })
