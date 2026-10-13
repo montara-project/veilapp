@@ -190,12 +190,13 @@ h1 {
   background: var(--control-bg);
 }
 
-/* Pinned inside the hover card's top-right corner (concentric with its
-   12px radius), clear of the icon artwork. */
-.quit {
+/* Pinned inside the hover card's top corners (concentric with its 12px
+   radius), clear of the icon artwork: ✕ on the right, and on the left the
+   eye that chooses whether "Hide icons" hides this app's icon. */
+.quit,
+.veil {
   position: absolute;
   top: 0px;
-  right: 6px;
   width: 24px;
   height: 24px;
   display: none;
@@ -212,8 +213,43 @@ h1 {
   cursor: pointer;
 }
 
-.app-card:hover .quit {
+.quit {
+  right: 6px;
+}
+
+.veil {
+  left: 6px;
+}
+
+.veil svg {
+  width: 14px;
+  height: 14px;
+  fill: none;
+  stroke: currentColor;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* An icon that stays visible keeps its eye on show, hovered or not. */
+.app-card:hover .quit,
+.app-card:hover .veil,
+.veil.pinned {
   display: flex;
+}
+
+.veil.pinned {
+  background: var(--accent);
+  color: #fff;
+}
+
+.veil:disabled {
+  opacity: 0.5;
+}
+
+/* The app has no menu bar icon to choose for. */
+.app-card .veil[hidden] {
+  display: none;
 }
 
 .quit:hover {

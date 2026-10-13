@@ -1,9 +1,12 @@
-//! Clicking another app's menu bar icon on the user's behalf.
+//! Clicking and moving another app's menu bar icon on the user's behalf.
 //!
 //! Apps that only show their window or popover from their own status item
 //! click handler (Tauri/Electron tray apps, Alfred, …) ignore the reopen
 //! event, so the only way to "open" them is to click that icon. Finding the
 //! icon and posting the click both need the Accessibility permission.
+//!
+//! The same goes for choosing which icons hide: an icon hides when it sits
+//! left of the wall (see `menubar`), and only a Cmd-drag moves it across.
 
 use core_foundation::array::{CFArray, CFArrayRef};
 use core_foundation::base::{CFType, CFTypeRef, TCFType};
@@ -13,6 +16,7 @@ use core_foundation::number::CFNumber;
 use core_foundation::string::{CFString, CFStringRef};
 use std::ffi::c_void;
 use std::ptr;
+use std::time::Duration;
 
 #[repr(C)]
 #[derive(Clone, Copy, Default)]
@@ -25,6 +29,8 @@ const AX_VALUE_CG_POINT: u32 = 1;
 const AX_VALUE_CG_SIZE: u32 = 2;
 const CG_EVENT_LEFT_MOUSE_DOWN: u32 = 1;
 const CG_EVENT_LEFT_MOUSE_UP: u32 = 2;
+const CG_EVENT_LEFT_MOUSE_DRAGGED: u32 = 6;
+const CG_EVENT_FLAG_COMMAND: u64 = 1 << 20;
 const CG_HID_EVENT_TAP: u32 = 0;
 const CG_WINDOW_LIST_ON_SCREEN_ONLY: u32 = 1;
 const CG_WINDOW_LIST_EXCLUDE_DESKTOP: u32 = 16;
@@ -48,7 +54,9 @@ unsafe extern "C" {
         position: CGPoint,
         button: u32,
     ) -> CFTypeRef;
+    fn CGEventSetFlags(event: CFTypeRef, flags: u64);
     fn CGEventPost(tap: u32, event: CFTypeRef);
+    fn AXUIElementSetMessagingTimeout(element: CFTypeRef, timeout_seconds: f32) -> i32;
     fn CGWarpMouseCursorPosition(position: CGPoint) -> i32;
 }
 
@@ -109,6 +117,8 @@ fn point(element: &CFType, name: &'static str, value_type: u32) -> Option<CGPoin
         .then_some(out)
 }
 
+const AX_TIMEOUT_SECS: f32 = 0.3;
+
 /// The first menu bar icon owned by `pid`, wherever the wall has put it.
 fn status_item(pid: i32) -> Option<CFType> {
     let app = unsafe { AXUIElementCreateApplication(pid) };
@@ -116,6 +126,9 @@ fn status_item(pid: i32) -> Option<CFType> {
         return None;
     }
     let app = unsafe { CFType::wrap_under_create_rule(app) };
+    // The panel asks every listed app on each refresh; a hung app must not
+    // stall it for the default 6 s.
+    unsafe { AXUIElementSetMessagingTimeout(app.as_CFTypeRef(), AX_TIMEOUT_SECS) };
     attribute(&app, "AXExtrasMenuBar")
         .and_then(|bar| attribute(&bar, "AXChildren"))
         .and_then(|children| children.downcast_into::<CFArray>())
@@ -130,52 +143,97 @@ pub fn has_status_item(pid: i32) -> bool {
     status_item(pid).is_some()
 }
 
+/// Centre of the first menu bar icon owned by `pid`, on a screen or not.
+// ponytail: apps with several icons (Stats) get their first one clicked or
+// moved; pick by name if that ever matters.
+fn status_item_center(pid: i32) -> Option<CGPoint> {
+    let item = status_item(pid)?;
+    let origin = point(&item, "AXPosition", AX_VALUE_CG_POINT)?;
+    let size = point(&item, "AXSize", AX_VALUE_CG_SIZE)?;
+    (size.x > 0.0).then_some(CGPoint {
+        x: origin.x + size.x / 2.0,
+        y: origin.y + size.y / 2.0,
+    })
+}
+
+/// Horizontal centre of `pid`'s menu bar icon, in global screen points.
+/// Icons pushed off the bar by the wall sit left of every display.
+pub fn status_item_x(pid: i32) -> Option<f64> {
+    status_item_center(pid).map(|center| center.x)
+}
+
+fn cursor_position() -> Option<CGPoint> {
+    let here = unsafe { CGEventCreate(ptr::null()) };
+    (!here.is_null()).then(|| unsafe {
+        let here = CFType::wrap_under_create_rule(here);
+        CGEventGetLocation(here.as_CFTypeRef())
+    })
+}
+
+fn post_mouse(mouse_type: u32, at: CGPoint, flags: u64) -> bool {
+    unsafe {
+        let event = CGEventCreateMouseEvent(ptr::null(), mouse_type, at, 0);
+        if event.is_null() {
+            return false;
+        }
+        let event = CFType::wrap_under_create_rule(event);
+        CGEventSetFlags(event.as_CFTypeRef(), flags);
+        CGEventPost(CG_HID_EVENT_TAP, event.as_CFTypeRef());
+    }
+    true
+}
+
 /// Left-click the first menu bar icon owned by `pid`. Returns `false` when
 /// the app has no icon or it is not on a screen (e.g. still behind the wall).
 ///
 /// A real mouse click rather than `AXPress`: many tray implementations
 /// (Tauri's included) react to mouse events on the icon, not to the button
 /// action that `AXPress` fires. The cursor is put back afterwards.
-// ponytail: apps with several icons (Stats) get their first one clicked;
-// pick by name if that ever matters.
 pub fn click_status_item(pid: i32) -> bool {
-    let Some(item) = status_item(pid) else {
+    let Some(target) = status_item_center(pid).filter(|p| on_a_screen(*p)) else {
         return false;
     };
-    let (Some(origin), Some(size)) = (
-        point(&item, "AXPosition", AX_VALUE_CG_POINT),
-        point(&item, "AXSize", AX_VALUE_CG_SIZE),
-    ) else {
-        return false;
-    };
-    let target = CGPoint {
-        x: origin.x + size.x / 2.0,
-        y: origin.y + size.y / 2.0,
-    };
-    // Items pushed off the bar by the wall sit left of every display.
-    if size.x <= 0.0 || !on_a_screen(target) {
-        return false;
+    let cursor = cursor_position();
+    let clicked = post_mouse(CG_EVENT_LEFT_MOUSE_DOWN, target, 0)
+        && post_mouse(CG_EVENT_LEFT_MOUSE_UP, target, 0);
+    if let Some(cursor) = cursor {
+        unsafe { CGWarpMouseCursorPosition(cursor) };
     }
+    clicked
+}
 
-    unsafe {
-        let here = CGEventCreate(ptr::null());
-        let cursor = (!here.is_null()).then(|| {
-            let here = CFType::wrap_under_create_rule(here);
-            CGEventGetLocation(here.as_CFTypeRef())
-        });
-        for mouse_type in [CG_EVENT_LEFT_MOUSE_DOWN, CG_EVENT_LEFT_MOUSE_UP] {
-            let event = CGEventCreateMouseEvent(ptr::null(), mouse_type, target, 0);
-            if event.is_null() {
-                return false;
-            }
-            let event = CFType::wrap_under_create_rule(event);
-            CGEventPost(CG_HID_EVENT_TAP, event.as_CFTypeRef());
-        }
-        if let Some(cursor) = cursor {
-            CGWarpMouseCursorPosition(cursor);
-        }
+/// How a synthetic Cmd-drag is paced. The menu bar only picks an icon up
+/// once the pointer has travelled while held, and drops it where the last
+/// drag event left it. Tune if icons stay put or land one slot off.
+const DRAG_STEPS: u32 = 12;
+const DRAG_STEP_WAIT: Duration = Duration::from_millis(15);
+const DRAG_HOLD_WAIT: Duration = Duration::from_millis(60);
+
+/// Cmd-drag the first menu bar icon owned by `pid` along the bar and drop it
+/// at `to_x`, the way a user rearranges icons by hand. Returns `false` when
+/// the app has no icon or it is not on a screen. The owning app saves the new
+/// spot itself, so the move survives relaunches. Blocks for the whole drag;
+/// the cursor is put back afterwards.
+pub fn drag_status_item(pid: i32, to_x: f64) -> bool {
+    let Some(from) = status_item_center(pid).filter(|p| on_a_screen(*p)) else {
+        return false;
+    };
+    let cursor = cursor_position();
+    let mut dragged = post_mouse(CG_EVENT_LEFT_MOUSE_DOWN, from, CG_EVENT_FLAG_COMMAND);
+    let mut at = from;
+    std::thread::sleep(DRAG_HOLD_WAIT);
+    for step in 1..=DRAG_STEPS {
+        at.x = from.x + (to_x - from.x) * f64::from(step) / f64::from(DRAG_STEPS);
+        dragged &= post_mouse(CG_EVENT_LEFT_MOUSE_DRAGGED, at, CG_EVENT_FLAG_COMMAND);
+        std::thread::sleep(DRAG_STEP_WAIT);
     }
-    true
+    std::thread::sleep(DRAG_HOLD_WAIT);
+    // Always release, or the bar is left holding the icon.
+    dragged &= post_mouse(CG_EVENT_LEFT_MOUSE_UP, at, CG_EVENT_FLAG_COMMAND);
+    if let Some(cursor) = cursor {
+        unsafe { CGWarpMouseCursorPosition(cursor) };
+    }
+    dragged
 }
 
 fn on_a_screen(p: CGPoint) -> bool {
@@ -204,5 +262,7 @@ mod tests {
         assert!(!has_window(-1));
         assert!(!has_status_item(-1));
         assert!(!click_status_item(-1));
+        assert!(status_item_x(-1).is_none());
+        assert!(!drag_status_item(-1, 0.0));
     }
 }

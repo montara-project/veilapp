@@ -31,7 +31,29 @@ static LAST_AUTO_HIDE: AtomicU64 = AtomicU64::new(0);
 
 #[tauri::command]
 fn list_apps() -> Vec<apps::AppInfo> {
-    apps::list_menu_bar_apps()
+    let mut list = apps::list_menu_bar_apps();
+    let wall = menubar::wall_span();
+    // Without Accessibility no icon can be located. Every card still offers
+    // the choice, so that using it brings up the permission prompt.
+    let trusted = ax::trusted(false);
+    for info in &mut list {
+        // Veil App's own icon is what brings the others back; it never hides.
+        if info.pid == std::process::id() as i32 {
+            continue;
+        }
+        info.veiled = if trusted {
+            wall.and_then(|wall| app_veiled(info.pid, wall))
+        } else {
+            Some(true)
+        };
+    }
+    list
+}
+
+/// Whether `pid`'s menu bar icon sits left of the wall's right edge, i.e.
+/// hides with "Hide icons". `None` when the app has no icon.
+fn app_veiled(pid: i32, (_, wall_right): (f64, f64)) -> Option<bool> {
+    ax::status_item_x(pid).map(|x| x < wall_right)
 }
 
 #[tauri::command]
@@ -103,6 +125,59 @@ fn activate_app(app: tauri::AppHandle, pid: i32) -> bool {
         }
     });
     true
+}
+
+/// Run `f` on the main thread and wait for its result.
+fn on_main<T: Send + 'static>(
+    app: &tauri::AppHandle,
+    f: impl FnOnce() -> T + Send + 'static,
+) -> Option<T> {
+    let (tx, rx) = std::sync::mpsc::channel();
+    app.run_on_main_thread(move || {
+        let _ = tx.send(f());
+    })
+    .ok()?;
+    rx.recv().ok()
+}
+
+/// How far past the wall's edge an icon is dropped, in points: far enough
+/// to land on the neighbouring icon rather than on the wall itself.
+const DROP_MARGIN: f64 = 3.0;
+
+/// Choose whether `pid`'s menu bar icon hides with "Hide icons" by
+/// Cmd-dragging it across the wall. Returns where the icon ended up, which
+/// is the old side when the drag did not take; `None` without the
+/// Accessibility permission (macOS then asks for it) or without an icon.
+///
+/// Runs off the main thread: the drag is paced with sleeps.
+#[tauri::command(async)]
+fn set_app_veiled(app: tauri::AppHandle, pid: i32, veiled: bool) -> Option<bool> {
+    if !ax::trusted(true) {
+        return None;
+    }
+    // An icon behind the expanded wall is off screen and can't be dragged.
+    let was_hidden = menubar::is_hidden();
+    if was_hidden {
+        on_main(&app, || menubar::set_hidden(false));
+        std::thread::sleep(LAYOUT_WAIT);
+    }
+    let wall = || on_main(&app, menubar::wall_span).flatten();
+    if let Some((wall_left, wall_right)) = wall() {
+        let drop_x = if veiled {
+            wall_left - DROP_MARGIN
+        } else {
+            wall_right + DROP_MARGIN
+        };
+        if ax::drag_status_item(pid, drop_x) {
+            std::thread::sleep(LAYOUT_WAIT);
+        }
+    }
+    // The wall moved if the icon crossed it, so measure again.
+    let now = wall().and_then(|wall| app_veiled(pid, wall));
+    if was_hidden {
+        on_main(&app, || menubar::set_hidden(true));
+    }
+    now
 }
 
 #[tauri::command]
@@ -321,6 +396,7 @@ pub fn run() {
             list_apps,
             quit_app,
             activate_app,
+            set_app_veiled,
             toggle_menu_bar_icons,
             icons_hidden,
             hide_window,

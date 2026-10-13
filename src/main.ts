@@ -10,6 +10,9 @@ interface AppInfo {
   pid: number
   memoryBytes: number
   iconPng: string
+  // Whether the app's menu bar icon hides with "Hide icons"; null when it
+  // has no icon to choose for.
+  veiled: boolean | null
 }
 
 // Same shape as the Rust `Settings`.
@@ -31,6 +34,11 @@ const sortMemoryBtn = document.querySelector<HTMLButtonElement>('#sort-memory')!
 // the whole grid every 5s re-decodes icons and re-renders the blurred panel,
 // which shows up as a visible flicker.
 const cardEls = new Map<number, HTMLElement>()
+
+const EYE_PATH =
+  '<path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12Z"/><circle cx="12" cy="12" r="3"/>'
+const EYE_ICON = `<svg viewBox="0 0 24 24">${EYE_PATH}</svg>`
+const EYE_OFF_ICON = `<svg viewBox="0 0 24 24">${EYE_PATH}<path d="M4 4l16 16"/></svg>`
 
 function buildCard(app: AppInfo): HTMLElement {
   const card = document.createElement('div')
@@ -60,6 +68,14 @@ function buildCard(app: AppInfo): HTMLElement {
     void quitApp(app.pid, e.altKey)
   })
   iconWrap.appendChild(quit)
+
+  const veil = document.createElement('button')
+  veil.className = 'veil'
+  veil.addEventListener('click', (e) => {
+    e.stopPropagation()
+    void toggleVeiled(app.pid, veil)
+  })
+  iconWrap.appendChild(veil)
 
   const name = document.createElement('div')
   name.className = 'app-name'
@@ -118,6 +134,20 @@ function render(): void {
     mem.textContent = formatMemory(app.memoryBytes)
     mem.classList.toggle('heavy', heavy)
 
+    const veil = card.querySelector<HTMLButtonElement>('.veil')!
+    const state = String(app.veiled)
+    // Only touch the DOM when the state changed, like the card order below.
+    if (veil.dataset.state !== state) {
+      veil.dataset.state = state
+      veil.hidden = app.veiled === null
+      veil.classList.toggle('pinned', app.veiled === false)
+      veil.innerHTML = app.veiled === false ? EYE_ICON : EYE_OFF_ICON
+      veil.title =
+        app.veiled === false
+          ? 'Stays visible · click to hide it with the other icons'
+          : 'Hides with the other icons · click to keep it visible'
+    }
+
     const expected: Element | null = prev ? prev.nextElementSibling : grid.firstElementChild
     if (card !== expected) {
       if (prev) {
@@ -165,6 +195,26 @@ async function refresh(): Promise<void> {
 async function quitApp(pid: number, force: boolean): Promise<void> {
   await invoke('quit_app', { pid, force })
   render()
+}
+
+// Moves the app's icon across the wall, which takes about a second and
+// borrows the mouse, so one move at a time.
+let moving = false
+
+async function toggleVeiled(pid: number, button: HTMLButtonElement): Promise<void> {
+  const app = apps.find((a) => a.pid === pid)
+  if (moving || !app || app.veiled === null) return
+  moving = true
+  button.disabled = true
+  try {
+    await invoke('set_app_veiled', { pid, veiled: !app.veiled })
+  } catch (err) {
+    console.error('set_app_veiled failed', err)
+  }
+  moving = false
+  button.disabled = false
+  // Shows where the icon really ended up, moved or not.
+  await refresh()
 }
 
 async function activate(pid: number): Promise<void> {

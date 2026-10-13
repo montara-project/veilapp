@@ -19,6 +19,7 @@ Veil App lives in the menu bar. Click its icon to open a small translucent panel
 - **Settings** — _General_: launch Veil App at login, show/hide the memory readout in the panel. _About_: what the app is, its version and identifier.
 - **Running apps at a glance** — every running third-party app with its icon, name, and live memory usage, refreshed every 5 seconds. Apps using ≥ 1 GB get a red badge. No special permissions needed.
 - **Hide menu bar icons** — one button hides every icon except Veil App, Wi-Fi, Battery, Spotlight, Control Center and the Clock; click again to bring everything back.
+- **Choose which icons hide** — hover a card and click the eye to keep that app's icon visible while the rest hide; click it again to hide it with the others (needs the Accessibility permission).
 - **App management** — click a card to open an app, hover and click ✕ (or right-click) to quit it, hold `⌥` to force-quit. Apps that only open from their own menu bar icon get that icon clicked for you (needs the Accessibility permission, see [Opening apps from the panel](#opening-apps-from-the-panel)).
 - **Sort by Name or Memory.**
 - **Universal builds** — CI publishes a single binary that runs natively on Intel and Apple Silicon.
@@ -29,7 +30,7 @@ _Hide icons_ uses the public-API **wall** trick (the same one Hidden Bar and Ice
 
 On launch, Veil App reads where macOS keeps Wi-Fi, Battery and Spotlight (their `NSStatusItem Preferred Position` defaults). It then seeds its own positions so the wall and its icon sit just left of whichever of those is leftmost: `… [wall][Veil App] Wi-Fi · Battery · Spotlight · Control Center · Clock`. While hidden, only **Veil App, Wi-Fi, Battery, Spotlight, Control Center and the Clock** stay visible. Items turned off in System Settings are skipped.
 
-A third-party icon that sits _between_ those system items also stays visible, because a single wall can only hide what is to its left. Cmd-drag such an icon to the left of the wall to hide it as well. The seeded positions are only rewritten if they are missing, the wall ends up right of the icon, or a kept item ends up left of the wall, so your own Cmd-drag arrangement survives relaunches.
+A third-party icon that sits _between_ those system items also stays visible, because a single wall can only hide what is to its left. Cmd-drag such an icon to the left of the wall to hide it as well, or let the eye on its card in the panel do the drag for you: the eye Cmd-drags the icon across the wall (collapsing the wall first when the icons are hidden), and the owning app remembers the new spot. The seeded positions are only rewritten if they are missing, the wall ends up right of the icon, or a kept item ends up left of the wall, so your own Cmd-drag arrangement survives relaunches.
 
 > Changing the alpha of other apps' status item windows (`CGSSetWindowAlpha`) does not work: the window server silently ignores it for windows owned by another process.
 
@@ -45,7 +46,7 @@ Some apps ignore that request and only open from their own menu bar icon: tray a
 2. Veil App finds the app's icon through the Accessibility API (`AXExtrasMenuBar`) and posts a real left click on it, then puts the cursor back where it was. A real click is used because many tray implementations react to mouse events, not to the accessibility "press" action.
 3. If the icons were hidden and the app now shows a window, the wall expands again, so the icons end up hidden as before. An app that opens a popover or menu on its icon instead keeps the icons shown, because the popover anchors to the icon; press **Hide icons** again when you are done.
 
-This is the only feature that needs the **Accessibility permission**. macOS asks for it the first time a card needs the icon click; enable Veil App under _System Settings → Privacy & Security → Accessibility_ and click the card again. Without the permission everything else keeps working, and such cards simply do nothing.
+This and the eye on each card are the only features that need the **Accessibility permission**. macOS asks for it the first time a card needs the icon click or its eye is used; enable Veil App under _System Settings → Privacy & Security → Accessibility_ and click the card again. Without the permission everything else keeps working, and such cards simply do nothing.
 
 Limits:
 
@@ -141,6 +142,7 @@ scripts/install.sh       # One-command build: installs Rust/Bun if missing, clon
 | `list_apps`                   | Menu bar apps (Accessory policy) + memory + icons         |
 | `quit_app(pid, force)`        | Terminate / force-terminate by PID                        |
 | `activate_app(pid)`           | Reopen an app; click its menu bar icon if no window shows |
+| `set_app_veiled(pid, veiled)` | Cmd-drag an app's icon across the wall: hide or keep it   |
 | `toggle_menu_bar_icons`       | Expand/collapse the wall                                  |
 | `hide_window(label)`          | Hide the panel or settings window (bound to `Esc`)        |
 | `get_settings`                | Read persisted preferences                                |

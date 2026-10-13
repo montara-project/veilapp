@@ -2,9 +2,11 @@ use core_foundation::base::{CFType, CFTypeRef, TCFType};
 use core_foundation::boolean::CFBoolean;
 use core_foundation::number::CFNumber;
 use core_foundation::string::{CFString, CFStringRef};
+use objc2::msg_send;
 use objc2::rc::Retained;
+use objc2::runtime::NSObject;
 use objc2_app_kit::{NSStatusBar, NSStatusItem};
-use objc2_foundation::NSString;
+use objc2_foundation::{NSRect, NSString};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Mutex;
 
@@ -153,4 +155,18 @@ pub fn set_hidden(hidden: bool) {
     if let Some(item) = WALL.lock().unwrap().as_ref() {
         item.0.setLength(if hidden { WALL_EXPANDED } else { WALL_COLLAPSED });
     }
+}
+
+/// The wall's left and right edges in global screen points. An icon left of
+/// the right edge is one the wall hides; see `seed_positions` for the layout.
+/// Must be called on the main thread.
+pub fn wall_span() -> Option<(f64, f64)> {
+    let wall = WALL.lock().unwrap();
+    let item = &wall.as_ref()?.0;
+    // Plain selectors, as the typed `button`/`window` accessors would pull
+    // four more objc2-app-kit features in for one frame.
+    let button: Option<Retained<NSObject>> = unsafe { msg_send![&**item, button] };
+    let window: Option<Retained<NSObject>> = unsafe { msg_send![&*button?, window] };
+    let frame: NSRect = unsafe { msg_send![&*window?, frame] };
+    Some((frame.origin.x, frame.origin.x + frame.size.width))
 }

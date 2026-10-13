@@ -17,6 +17,9 @@ pub struct AppInfo {
     pub pid: i32,
     pub memory_bytes: u64,
     pub icon_png: String,
+    /// Whether the app's menu bar icon hides with "Hide icons"; `None` when
+    /// it has no icon to choose for. Filled in by the `list_apps` command.
+    pub veiled: Option<bool>,
 }
 
 /// The panel list: all third-party running apps (including Veil App itself).
@@ -44,6 +47,7 @@ pub fn list_menu_bar_apps() -> Vec<AppInfo> {
                 .icon()
                 .and_then(|icon| icon_to_png_base64(&icon))
                 .unwrap_or_default(),
+            veiled: None,
         });
     }
     apps
