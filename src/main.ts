@@ -189,6 +189,9 @@ hideBtn.addEventListener('click', async () => {
   setIconsHidden(await invoke<boolean>('toggle_menu_bar_icons'))
 })
 
+// Launched at login, the icons start out hidden.
+void invoke<boolean>('icons_hidden').then(setIconsHidden)
+
 // Opening an app through its menu bar icon brings the icons back.
 void listen<boolean>('icons-hidden', (e) => setIconsHidden(e.payload))
 

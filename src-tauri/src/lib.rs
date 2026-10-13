@@ -16,6 +16,9 @@ const PANEL_LABEL: &str = "panel";
 const SETTINGS_LABEL: &str = "settings";
 const MENU_SETTINGS: &str = "settings";
 const MENU_QUIT: &str = "quit";
+/// Passed by the login item so a launch at login can be told apart from the
+/// user opening the app by hand.
+const ARG_AUTOSTART: &str = "--autostart";
 
 fn now_ms() -> u64 {
     SystemTime::now()
@@ -111,6 +114,11 @@ fn toggle_menu_bar_icons() -> bool {
 }
 
 #[tauri::command]
+fn icons_hidden() -> bool {
+    menubar::is_hidden()
+}
+
+#[tauri::command]
 fn hide_window(app: tauri::AppHandle, label: String) {
     if let Some(window) = app.get_webview_window(&label) {
         let _ = window.hide();
@@ -133,7 +141,7 @@ pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_autostart::init(
             tauri_plugin_autostart::MacosLauncher::LaunchAgent,
-            None,
+            Some(vec![ARG_AUTOSTART]),
         ))
         .plugin(tauri_plugin_updater::Builder::new().build())
         .plugin(tauri_plugin_process::init())
@@ -292,6 +300,21 @@ pub fn run() {
                     menubar::init(&item);
                 }
             })?;
+
+            // Launched at login: start with the icons already hidden.
+            if std::env::args().any(|arg| arg == ARG_AUTOSTART) {
+                menubar::set_hidden(true);
+            }
+            // A login item enabled before `ARG_AUTOSTART` existed lacks the
+            // argument; re-enabling rewrites it. Release builds only, so a
+            // dev run never points the login item at the debug binary.
+            if !cfg!(debug_assertions) {
+                use tauri_plugin_autostart::ManagerExt;
+                let autostart = app.autolaunch();
+                if autostart.is_enabled().unwrap_or(false) {
+                    let _ = autostart.enable();
+                }
+            }
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -299,6 +322,7 @@ pub fn run() {
             quit_app,
             activate_app,
             toggle_menu_bar_icons,
+            icons_hidden,
             hide_window,
             settings::get_settings,
             settings::set_show_memory_usage
