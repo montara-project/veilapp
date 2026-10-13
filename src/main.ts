@@ -1,5 +1,7 @@
 import { invoke } from '@tauri-apps/api/core'
 import { listen } from '@tauri-apps/api/event'
+import { relaunch } from '@tauri-apps/plugin-process'
+import { check, type Update } from '@tauri-apps/plugin-updater'
 
 import './style.css'
 
@@ -189,6 +191,48 @@ hideBtn.addEventListener('click', async () => {
 
 // Opening an app through its menu bar icon brings the icons back.
 void listen<boolean>('icons-hidden', (e) => setIconsHidden(e.payload))
+
+// Update banner: the panel is the only window users open day to day, so an
+// available update is announced here rather than only in Settings → About.
+const updateBar = document.querySelector<HTMLDivElement>('#update')!
+const updateText = document.querySelector<HTMLSpanElement>('#update-text')!
+const updateBtn = document.querySelector<HTMLButtonElement>('#update-install')!
+
+let pendingUpdate: Update | null = null
+
+async function checkForUpdate(): Promise<void> {
+  if (pendingUpdate) return
+  try {
+    pendingUpdate = await check()
+  } catch (err) {
+    console.error('update check failed', err)
+    return
+  }
+  if (!pendingUpdate) return
+  updateText.textContent = `Veil App ${pendingUpdate.version} is available`
+  updateBar.hidden = false
+}
+
+updateBtn.addEventListener('click', async () => {
+  if (!pendingUpdate) return
+  updateBtn.disabled = true
+  updateBtn.textContent = 'Updating…'
+  try {
+    await pendingUpdate.downloadAndInstall()
+    await relaunch()
+  } catch (err) {
+    console.error('update install failed', err)
+    updateBtn.textContent = 'Retry'
+    updateBtn.disabled = false
+  }
+})
+
+// Dev builds have no matching release. The app stays running for weeks, so
+// re-check periodically instead of only at launch.
+if (!import.meta.env.DEV) {
+  void checkForUpdate()
+  setInterval(() => void checkForUpdate(), 6 * 60 * 60 * 1000)
+}
 
 window.addEventListener('keydown', (e) => {
   if (e.key === 'Escape') void invoke('hide_window', { label: 'panel' })

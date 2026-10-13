@@ -81,6 +81,35 @@ h1 {
   color: var(--text-secondary);
 }
 
+/* Shown only while an update is waiting to be installed. */
+#update:not([hidden]) {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 8px 8px 12px;
+  border-radius: 10px;
+  background: var(--control-bg);
+  font-size: 13px;
+}
+
+#update-install {
+  border: none;
+  border-radius: 7px;
+  background: var(--accent);
+  color: #fff;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  padding: 5px 12px;
+  cursor: pointer;
+}
+
+#update-install:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
 #grid {
   flex: 1;
   overflow-y: auto;
