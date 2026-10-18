@@ -190,6 +190,10 @@ async function refresh(): Promise<void> {
     return
   }
   render()
+  // Granted in System Settings while the banner was up.
+  if (!accessBar.hidden && (await invoke<boolean>('accessibility_trusted'))) {
+    accessBar.hidden = true
+  }
 }
 
 async function quitApp(pid: number, force: boolean): Promise<void> {
@@ -244,6 +248,17 @@ void invoke<boolean>('icons_hidden').then(setIconsHidden)
 
 // Opening an app through its menu bar icon brings the icons back.
 void listen<boolean>('icons-hidden', (e) => setIconsHidden(e.payload))
+
+// Accessibility banner: macOS's own prompt is easy to dismiss, and it does
+// not explain why clicking a card did nothing.
+const accessBar = document.querySelector<HTMLDivElement>('#access')!
+const accessOpenBtn = document.querySelector<HTMLButtonElement>('#access-open')!
+
+void listen('accessibility-needed', () => {
+  accessBar.hidden = false
+})
+
+accessOpenBtn.addEventListener('click', () => void invoke('open_accessibility_settings'))
 
 // Update banner: the panel is the only window users open day to day, so an
 // available update is announced here rather than only in Settings → About.

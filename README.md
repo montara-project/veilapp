@@ -46,14 +46,30 @@ Some apps ignore that request and only open from their own menu bar icon: tray a
 2. Veil App finds the app's icon through the Accessibility API (`AXExtrasMenuBar`) and posts a real left click on it, then puts the cursor back where it was. A real click is used because many tray implementations react to mouse events, not to the accessibility "press" action.
 3. If the icons were hidden and the app now shows a window, the wall expands again, so the icons end up hidden as before. An app that opens a popover or menu on its icon instead keeps the icons shown, because the popover anchors to the icon; press **Hide icons** again when you are done.
 
-This and the eye on each card are the only features that need the **Accessibility permission**. macOS asks for it the first time a card needs the icon click or its eye is used; enable Veil App under _System Settings → Privacy & Security → Accessibility_ and click the card again. Without the permission everything else keeps working, and such cards simply do nothing.
+This and the eye on each card are the only features that need the **Accessibility permission**. macOS asks for it the first time a card needs the icon click or its eye is used, and the panel shows an **Open Settings** banner; enable Veil App under _System Settings → Privacy & Security → Accessibility_ and click the card again. Without the permission everything else keeps working, and such cards simply do nothing.
+
+macOS ties the grant to the app's code signature. When a build with a different signature asks (see [Code signing](#code-signing)), the old entry still looks switched on in System Settings but no longer applies, and toggling it does not help. Veil App therefore clears its own stale entry (`tccutil reset Accessibility com.montara.veilapp`) once per launch before asking, so the prompt adds a fresh entry to switch on.
 
 Limits:
 
 - An app with several menu bar icons gets its first one clicked.
 - Apple's own menu bar apps (Weather, input menu) are not listed in the panel, so they cannot be opened from it.
 - On macOS 26 every status item is hosted by Control Center, so an app's icon may not be found and the click is skipped.
-- Unsigned builds get a new code identity on every build, so macOS may ask for the permission again after an update.
+- Ad-hoc signed builds get a new code identity on every build, so macOS asks for the permission again after each update. Releases signed with a fixed certificate keep it (see [Code signing](#code-signing)).
+
+## Code signing
+
+Releases are signed with one fixed certificate so the Accessibility grant survives updates. Create it once with:
+
+```bash
+./scripts/create-signing-cert.sh            # self-signed "Veil App Code Signing"
+```
+
+and add the three printed GitHub secrets (`MACOS_CERTIFICATE`, `MACOS_CERTIFICATE_PASSWORD`, `MACOS_SIGNING_IDENTITY`). The release workflow imports it into a temporary keychain and passes the name to Tauri as `APPLE_SIGNING_IDENTITY`. A paid _Developer ID Application_ certificate works the same way and also avoids the Gatekeeper warning. Without the secrets the release is ad-hoc signed, as before.
+
+Keep the certificate: a new one is a new identity, and every user has to grant Accessibility once more. Switching from ad-hoc to the fixed certificate costs one such re-grant.
+
+To sign a local build with it: `APPLE_SIGNING_IDENTITY="Veil App Code Signing" bun run tauri build`.
 
 ## Tech stack
 

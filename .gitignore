@@ -29,3 +29,6 @@ src-tauri/target
 # graft's local graph cache — regenerable, not committed (run `graft build`).
 /graft/
 .omc/
+
+# Code signing certificate from scripts/create-signing-cert.sh
+/signing/

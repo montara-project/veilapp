@@ -3,7 +3,7 @@ mod ax;
 mod menubar;
 mod settings;
 
-use std::sync::atomic::{AtomicU64, Ordering};
+use std::sync::atomic::{AtomicBool, AtomicU64, Ordering};
 use std::time::{Duration, SystemTime, UNIX_EPOCH};
 
 use tauri::{
@@ -72,6 +72,42 @@ const LAYOUT_WAIT: Duration = Duration::from_millis(300);
 /// own Hide/Show button, so the button label stays right.
 const EVENT_ICONS_HIDDEN: &str = "icons-hidden";
 
+/// Emitted when a feature needs the Accessibility permission Veil App lacks,
+/// so the panel can say where to grant it.
+const EVENT_ACCESSIBILITY_NEEDED: &str = "accessibility-needed";
+
+static TRUST_FORGOTTEN: AtomicBool = AtomicBool::new(false);
+
+/// Whether Veil App may use the Accessibility API, asking for it when not.
+fn ensure_accessibility(app: &tauri::AppHandle) -> bool {
+    if ax::trusted(false) {
+        return true;
+    }
+    // A grant left over from an earlier build looks switched on in System
+    // Settings but no longer applies; drop it so the prompt below adds one
+    // that does. Once per launch, so an entry the user has just been asked
+    // about is not wiped again. Release builds only: a dev run is granted
+    // through its terminal, and resetting would revoke the installed app.
+    if !cfg!(debug_assertions) && !TRUST_FORGOTTEN.swap(true, Ordering::Relaxed) {
+        ax::forget_trust(&app.config().identifier);
+    }
+    ax::trusted(true);
+    let _ = app.emit(EVENT_ACCESSIBILITY_NEEDED, ());
+    false
+}
+
+#[tauri::command]
+fn accessibility_trusted() -> bool {
+    ax::trusted(false)
+}
+
+#[tauri::command]
+fn open_accessibility_settings() {
+    let _ = std::process::Command::new("open")
+        .arg("x-apple.systempreferences:com.apple.preference.security?Privacy_Accessibility")
+        .spawn();
+}
+
 /// Wait up to `WINDOW_WAIT` for `pid` to show a normal window.
 fn wait_for_window(pid: i32) -> bool {
     let deadline = std::time::Instant::now() + WINDOW_WAIT;
@@ -105,7 +141,7 @@ fn activate_app(app: tauri::AppHandle, pid: i32) -> bool {
     // Some apps ignore the reopen above and only open from their own menu
     // bar icon. If no window shows up, click that icon for the user.
     std::thread::spawn(move || {
-        if wait_for_window(pid) || !ax::trusted(true) || !ax::has_status_item(pid) {
+        if wait_for_window(pid) || !ensure_accessibility(&app) || !ax::has_status_item(pid) {
             return;
         }
         // The icon must be on the bar to be clicked, so bring the icons
@@ -152,7 +188,7 @@ const DROP_MARGIN: f64 = 3.0;
 /// Runs off the main thread: the drag is paced with sleeps.
 #[tauri::command(async)]
 fn set_app_veiled(app: tauri::AppHandle, pid: i32, veiled: bool) -> Option<bool> {
-    if !ax::trusted(true) {
+    if !ensure_accessibility(&app) {
         return None;
     }
     // An icon behind the expanded wall is off screen and can't be dragged.
@@ -397,6 +433,8 @@ pub fn run() {
             quit_app,
             activate_app,
             set_app_veiled,
+            accessibility_trusted,
+            open_accessibility_settings,
             toggle_menu_bar_icons,
             icons_hidden,
             hide_window,

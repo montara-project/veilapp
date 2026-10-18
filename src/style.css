@@ -81,8 +81,10 @@ h1 {
   color: var(--text-secondary);
 }
 
-/* Shown only while an update is waiting to be installed. */
-#update:not([hidden]) {
+/* Shown only while an update is waiting to be installed, or while a
+   feature is waiting for the Accessibility permission. */
+#update:not([hidden]),
+#access:not([hidden]) {
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -93,7 +95,8 @@ h1 {
   font-size: 13px;
 }
 
-#update-install {
+#update-install,
+#access-open {
   border: none;
   border-radius: 7px;
   background: var(--accent);
@@ -103,6 +106,10 @@ h1 {
   font-weight: 500;
   padding: 5px 12px;
   cursor: pointer;
+}
+
+#access-open {
+  flex-shrink: 0;
 }
 
 #update-install:disabled {

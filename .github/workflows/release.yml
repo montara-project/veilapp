@@ -36,6 +36,34 @@ jobs:
       - name: Install frontend dependencies
         run: bun install --frozen-lockfile
 
+      # Sign with a fixed certificate so every release keeps the same code
+      # identity and macOS keeps the Accessibility grant across updates.
+      # Without the secrets the build falls back to ad-hoc signing, which
+      # loses the grant on every update. Imported here rather than through
+      # tauri-action's APPLE_CERTIFICATE, which only accepts Apple-issued
+      # certificates; scripts/create-signing-cert.sh makes a self-signed one.
+      - name: Import code signing certificate
+        env:
+          CERT_P12_BASE64: ${{ secrets.MACOS_CERTIFICATE }}
+          CERT_PASSWORD: ${{ secrets.MACOS_CERTIFICATE_PASSWORD }}
+          SIGNING_IDENTITY: ${{ secrets.MACOS_SIGNING_IDENTITY }}
+        run: |
+          if [ -z "$CERT_P12_BASE64" ]; then
+            echo "::warning::MACOS_CERTIFICATE is not set; the app is ad-hoc signed and users must re-grant Accessibility after updating."
+            exit 0
+          fi
+          KEYCHAIN="$RUNNER_TEMP/signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -hex 16)"
+          echo "$CERT_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/cert.p12"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -t 3600 -u "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import "$RUNNER_TEMP/cert.p12" -k "$KEYCHAIN" -P "$CERT_PASSWORD" -T /usr/bin/codesign
+          security set-key-partition-list -S apple-tool:,apple:,codesign: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN" > /dev/null
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | xargs)
+          rm "$RUNNER_TEMP/cert.p12"
+          echo "APPLE_SIGNING_IDENTITY=$SIGNING_IDENTITY" >> "$GITHUB_ENV"
+
       - name: Build app and create GitHub Release
         uses: tauri-apps/tauri-action@v0
         env:

@@ -71,6 +71,19 @@ pub fn trusted(prompt: bool) -> bool {
     unsafe { AXIsProcessTrustedWithOptions(options.as_concrete_TypeRef()) }
 }
 
+/// Drop every Accessibility decision macOS keeps for `bundle_id`.
+///
+/// macOS ties a grant to the code signature of the build it was given to.
+/// A build signed differently (ad-hoc builds differ on every build) is then
+/// refused while System Settings still shows Veil App switched on, and
+/// switching it off and on does not help. Without the stale entry the next
+/// prompt adds a fresh one for this build.
+pub fn forget_trust(bundle_id: &str) {
+    let _ = std::process::Command::new("/usr/bin/tccutil")
+        .args(["reset", "Accessibility", bundle_id])
+        .output();
+}
+
 /// Whether `pid` owns a normal window that is currently shown. Needs no
 /// permission: owner and layer are public window-list fields.
 pub fn has_window(pid: i32) -> bool {
