@@ -14,5 +14,5 @@
       }
     ]
   },
-  "ignorePatterns": ["dist", "src-tauri/target"]
+  "ignorePatterns": ["dist", "src-tauri/target", ".claude"]
 }
