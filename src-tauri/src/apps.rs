@@ -99,6 +99,17 @@ pub fn activate_app(pid: i32) -> bool {
     app.activateWithOptions(NSApplicationActivationOptions::ActivateAllWindows)
 }
 
+/// Bundle ids of running apps whose menu bar icon sits at or right of `x`,
+/// in global screen points. Needs the Accessibility permission; empty
+/// without it.
+pub fn bundle_ids_with_icon_from(x: f64) -> Vec<String> {
+    running_apps()
+        .iter()
+        .filter(|app| crate::ax::status_item_x(app.processIdentifier()).is_some_and(|ix| ix >= x))
+        .filter_map(|app| app.bundleIdentifier().map(|b| b.to_string()))
+        .collect()
+}
+
 fn running_apps() -> Vec<Retained<NSRunningApplication>> {
     let ws = NSWorkspace::sharedWorkspace();
     // objc2-app-kit 0.3.2 doesn't generate the `runningApplications` property,

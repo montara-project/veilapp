@@ -36,6 +36,8 @@ A third-party icon that sits _between_ those system items also stays visible, be
 
 > **macOS 26 note:** Tahoe hosts all status items under the Control Center process, so individual menu bar icons can no longer be attributed to apps through the window list. Veil App therefore lists _Accessory-policy_ apps (background/menu bar apps) as its best public-API approximation.
 
+> **macOS 27 note:** Golden Gate draws the whole menu bar in one window and ejects an expanded wall instead of letting it push icons off, so the wall trick hides nothing there. On macOS 27 _Hide icons_ uses the allow-list behind the system's assessment (exam) mode instead (`MBAssessmentModeAssertion` in the private `MenuBarClientCore` framework, the same route Hidden Bar takes). Veil App and every app whose icon sits right of the collapsed wall stay on the list; all other icons hide until _Show icons_ or until Veil App quits. Finding which third-party icons sit right of the wall needs the **Accessibility permission**: without it they hide too. Wi-Fi, Battery, Control Center, the Clock and the other system items always stay, and Control Center extras such as Focus stay when they sit right of the wall. **Spotlight always hides** while the list is active: no app can keep it on macOS 27. A `tauri dev` run has no bundle id, so macOS can't keep its own icon either; test hiding with a built `.app`. A macOS release that drops the framework falls back to the wall.
+
 ## Opening apps from the panel
 
 Clicking a card reopens the app, the way clicking it in the Dock does. That is enough for apps that answer with a window (Stats and Wallper open their main or settings window).

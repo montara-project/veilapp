@@ -25,12 +25,15 @@ libproc = "0.14"
 core-foundation = "0.10"
 # Keep in lockstep with the objc2 stack tao/wry already use (see Cargo.lock).
 objc2 = "0.6"
+block2 = "0.6"
 objc2-foundation = { version = "0.3", features = [
   "NSArray",
   "NSData",
   "NSDictionary",
   "NSGeometry",
+  "NSProcessInfo",
   "NSString",
+  "NSValue",
 ] }
 objc2-app-kit = { version = "0.3", features = [
   "NSApplication",
